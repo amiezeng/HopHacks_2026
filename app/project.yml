@@ -13,6 +13,14 @@ targets:
           - README.md
           - project.yml
           - "*.xcodeproj"
+          - build
+      - path: ../models
+        excludes:
+          - "*.pt"
+          - "*.ts"
+          - yolo26n-seg-drinks.mlpackage
+          - yoloe-26n-seg.mlpackage
+          - .gitignore
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hophacks.probe
