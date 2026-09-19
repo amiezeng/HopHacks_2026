@@ -23,6 +23,12 @@
 		B0C979EC02F0C4FD5B6048C7 /* ObjectDetection.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC836258EA6D85AF03B410B2 /* ObjectDetection.swift */; };
 		B2F826878AC92D43EFCB812B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 04022284DE5C3A42ACE8C238 /* Assets.xcassets */; };
 		D716FA4AE2161C85EA0F4CC9 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6563B8BE5EBDABE5DDE83D5D /* CameraView.swift */; };
+		E5A1C0DE00000000000000B1 /* Speaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A1 /* Speaker.swift */; };
+		E5A1C0DE00000000000000B2 /* Secrets.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A2 /* Secrets.swift */; };
+		E5A1C0DE00000000000000B3 /* InteractionAnnouncer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A3 /* InteractionAnnouncer.swift */; };
+		E5A1C0DE00000000000000B4 /* VoiceListener.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A4 /* VoiceListener.swift */; };
+		E5A1C0DE00000000000000B5 /* ListeningIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A5 /* ListeningIndicator.swift */; };
+		E5A1C0DE00000000000000B6 /* TargetParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A6 /* TargetParser.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,6 +48,12 @@
 		83C9D8DAB1B7AB3CD5F4CDE7 /* MainScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainScreen.swift; sourceTree = "<group>"; };
 		AC836258EA6D85AF03B410B2 /* ObjectDetection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetection.swift; sourceTree = "<group>"; };
 		D042B4C320C0A8030FCE89C3 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A1 /* Speaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Speaker.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A2 /* Secrets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Secrets.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A3 /* InteractionAnnouncer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionAnnouncer.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A4 /* VoiceListener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceListener.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A5 /* ListeningIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningIndicator.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A6 /* TargetParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetParser.swift; sourceTree = "<group>"; };
 		DB6D23497E7DBD69C26B3220 /* homeImage.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = homeImage.png; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -85,6 +97,12 @@
 				D042B4C320C0A8030FCE89C3 /* ContentView.swift */,
 				52CC283EC693E22C6E2271CF /* FindButton.png */,
 				08C95FBFA6D313133260559A /* HandHighlight.swift */,
+				E5A1C0DE00000000000000A6 /* TargetParser.swift */,
+				E5A1C0DE00000000000000A5 /* ListeningIndicator.swift */,
+				E5A1C0DE00000000000000A4 /* VoiceListener.swift */,
+				E5A1C0DE00000000000000A3 /* InteractionAnnouncer.swift */,
+				E5A1C0DE00000000000000A2 /* Secrets.swift */,
+				E5A1C0DE00000000000000A1 /* Speaker.swift */,
 				DB6D23497E7DBD69C26B3220 /* homeImage.png */,
 				25AE8B98C924BB363BF7AED8 /* HomeScreen.swift */,
 				83C9D8DAB1B7AB3CD5F4CDE7 /* MainScreen.swift */,
@@ -177,6 +195,12 @@
 				2D239C92CA04D0DB9C877061 /* HomeScreen.swift in Sources */,
 				1C4112677B9292B4392B3C3D /* MainScreen.swift in Sources */,
 				B0C979EC02F0C4FD5B6048C7 /* ObjectDetection.swift in Sources */,
+				E5A1C0DE00000000000000B2 /* Secrets.swift in Sources */,
+				E5A1C0DE00000000000000B1 /* Speaker.swift in Sources */,
+				E5A1C0DE00000000000000B3 /* InteractionAnnouncer.swift in Sources */,
+				E5A1C0DE00000000000000B4 /* VoiceListener.swift in Sources */,
+				E5A1C0DE00000000000000B5 /* ListeningIndicator.swift in Sources */,
+				E5A1C0DE00000000000000B6 /* TargetParser.swift in Sources */,
 				A595B93E55A795E64C1D6C8B /* Segmentation.swift in Sources */,
 				66D5DCF67111EBE36774E101 /* YOLOv10n_EGOHOS.mlpackage in Sources */,
 				7CDDF775603879A49D65F52E /* yolo26n-seg.mlpackage in Sources */,
@@ -193,8 +217,9 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "build/Build/Products/Debug-iphoneos/Probe.app/Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera is used to detect hands and objects with AR.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Probe listens for your voice commands.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Probe uses speech recognition to understand your voice commands.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -334,8 +359,9 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "build/Build/Products/Debug-iphoneos/Probe.app/Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera is used to detect hands and objects with AR.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Probe listens for your voice commands.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Probe uses speech recognition to understand your voice commands.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
