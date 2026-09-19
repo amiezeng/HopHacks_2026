@@ -12,24 +12,44 @@ final class VoiceListener: ObservableObject {
     private var task: SFSpeechRecognitionTask?
     private var commands: [String: [String]] = [:]
     private var onCommand: ((String) -> Void)?
+    private var onUtterance: ((String) -> Void)?
+    private var silenceAfterSpeech: TimeInterval = 2
+    private var silenceTask: Task<Void, Never>?
+    private var restartTask: Task<Void, Never>?
+    private var isStarting = false
     private var wantsListening = false
     private var sessionID = 0
 
     /// Listens until one of the command keywords is heard, then stops and calls `onCommand` with that command's name.
-    func start(commands: [String: [String]], onCommand: @escaping (String) -> Void) async {
+    /// If `onUtterance` is set, it also stops once the user has spoken and then stayed silent for
+    /// `silenceAfterSpeech` seconds, passing the full transcript. The silence timer only starts after the first word.
+    func start(
+        commands: [String: [String]],
+        onCommand: @escaping (String) -> Void,
+        onUtterance: ((String) -> Void)? = nil,
+        silenceAfterSpeech: TimeInterval = 2
+    ) async {
         self.commands = commands
         self.onCommand = onCommand
+        self.onUtterance = onUtterance
+        self.silenceAfterSpeech = silenceAfterSpeech
         wantsListening = true
+        restartTask?.cancel()
         await beginSession()
     }
 
     func stop() {
         wantsListening = false
+        restartTask?.cancel()
+        restartTask = nil
         endSession()
     }
 
     private func beginSession() async {
-        guard wantsListening, !isListening, await requestPermissions() else { return }
+        guard wantsListening, !isListening, !isStarting else { return }
+        isStarting = true
+        defer { isStarting = false }
+        guard await requestPermissions() else { return }
         // stop() may have been called while the permission prompt was showing
         guard wantsListening else { return }
         guard let recognizer, recognizer.isAvailable else {
@@ -45,6 +65,7 @@ final class VoiceListener: ObservableObject {
             request.contextualStrings = commands.values.flatMap { $0 }
             request.requiresOnDeviceRecognition = recognizer.supportsOnDeviceRecognition
 
+            audioEngine.inputNode.removeTap(onBus: 0)
             Self.installTap(on: audioEngine.inputNode, feeding: request)
             audioEngine.prepare()
             try audioEngine.start()
@@ -64,6 +85,9 @@ final class VoiceListener: ObservableObject {
     }
 
     private func endSession() {
+        sessionID += 1
+        silenceTask?.cancel()
+        silenceTask = nil
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
         request?.endAudio()
@@ -78,6 +102,7 @@ final class VoiceListener: ObservableObject {
         guard session == sessionID else { return }
 
         if let text {
+            let changed = text != transcript
             transcript = text
             print("Heard: \(text)")
             if let command = matchedCommand(in: text) {
@@ -85,18 +110,43 @@ final class VoiceListener: ObservableObject {
                 onCommand?(command)
                 return
             }
+            if onUtterance != nil, changed, !text.isEmpty {
+                restartSilenceTimer(session: session)
+            }
         }
 
         if finished {
+            if onUtterance != nil, !transcript.isEmpty {
+                finishUtterance()
+                return
+            }
             // The recognizer times out after a stretch of silence, so keep listening while the screen wants it.
             endSession()
             if wantsListening {
-                Task {
+                restartTask?.cancel()
+                restartTask = Task {
                     try? await Task.sleep(for: .milliseconds(500))
+                    guard !Task.isCancelled else { return }
                     await beginSession()
                 }
             }
         }
+    }
+
+    private func restartSilenceTimer(session: Int) {
+        silenceTask?.cancel()
+        silenceTask = Task {
+            try? await Task.sleep(for: .seconds(silenceAfterSpeech))
+            guard !Task.isCancelled, session == sessionID else { return }
+            finishUtterance()
+        }
+    }
+
+    private func finishUtterance() {
+        let text = transcript
+        let callback = onUtterance
+        stop()
+        callback?(text)
     }
 
     private func matchedCommand(in text: String) -> String? {

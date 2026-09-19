@@ -23,6 +23,7 @@
 		E5A1C0DE00000000000000B3 /* InteractionAnnouncer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A3 /* InteractionAnnouncer.swift */; };
 		E5A1C0DE00000000000000B4 /* VoiceListener.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A4 /* VoiceListener.swift */; };
 		E5A1C0DE00000000000000B5 /* ListeningIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A5 /* ListeningIndicator.swift */; };
+		E5A1C0DE00000000000000B6 /* TargetParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A6 /* TargetParser.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +44,7 @@
 		E5A1C0DE00000000000000A3 /* InteractionAnnouncer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionAnnouncer.swift; sourceTree = "<group>"; };
 		E5A1C0DE00000000000000A4 /* VoiceListener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceListener.swift; sourceTree = "<group>"; };
 		E5A1C0DE00000000000000A5 /* ListeningIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningIndicator.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A6 /* TargetParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetParser.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -72,6 +74,7 @@
 				6563B8BE5EBDABE5DDE83D5D /* CameraView.swift */,
 				D042B4C320C0A8030FCE89C3 /* ContentView.swift */,
 				08C95FBFA6D313133260559A /* HandHighlight.swift */,
+				E5A1C0DE00000000000000A6 /* TargetParser.swift */,
 				E5A1C0DE00000000000000A5 /* ListeningIndicator.swift */,
 				E5A1C0DE00000000000000A4 /* VoiceListener.swift */,
 				E5A1C0DE00000000000000A3 /* InteractionAnnouncer.swift */,
@@ -170,6 +173,7 @@
 				E5A1C0DE00000000000000B3 /* InteractionAnnouncer.swift in Sources */,
 				E5A1C0DE00000000000000B4 /* VoiceListener.swift in Sources */,
 				E5A1C0DE00000000000000B5 /* ListeningIndicator.swift in Sources */,
+				E5A1C0DE00000000000000B6 /* TargetParser.swift in Sources */,
 				2D5775A8D32C6E0B20AE98FD /* YOLOv10n_EGOHOS.mlpackage in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

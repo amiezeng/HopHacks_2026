@@ -46,7 +46,7 @@ final class Speaker: NSObject, AVAudioPlayerDelegate {
 
     func waitUntilIdle() async {
         while worker != nil, !Task.isCancelled {
-            try? await Task.sleep(for: .milliseconds(100))
+            try? await Task.sleep(for: .milliseconds(50))
         }
     }
 

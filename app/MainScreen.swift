@@ -42,6 +42,9 @@ struct MainScreen: View {
         }
         .animation(.easeInOut, value: listener.isListening)
         .navigationDestination(isPresented: $showFind) { ContentView(onBack: { showFind = false }) }
+        .onChange(of: showFind) { _, isShowing in
+            if !isShowing { Speaker.shared.stop() }
+        }
         .task {
             optionChosen = false
             try? await Task.sleep(for: .seconds(0.5))
