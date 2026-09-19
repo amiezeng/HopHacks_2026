@@ -35,6 +35,7 @@ class ObjectDetector: ObservableObject {
     @Published var leftHandHoldingObject = false
     @Published var rightHandHoldingObject = false
     @Published var distance: Float? = nil
+    @Published var interactionConfidence: Float = 0
 
     private var objectRequest: VNCoreMLRequest?
     private var handRequest: VNDetectHumanHandPoseRequest?
@@ -80,6 +81,9 @@ class ObjectDetector: ObservableObject {
                 DispatchQueue.main.async {
                     self?.detections = mapped
                     self?.updateHoldingHands(from: mapped)
+                    self?.interactionConfidence = mapped
+                        .filter { $0.label.contains("1st_order_interacting_object") }
+                        .map(\.confidence).max() ?? 0
                     self?.tryComputeDistance()
                 }
             }
