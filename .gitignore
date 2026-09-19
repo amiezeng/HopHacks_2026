@@ -1,3 +1,5 @@
 .venv/
 *.pt
 app/Secrets.swift
+CLAUDE.md
+app/build/

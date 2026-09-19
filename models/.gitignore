@@ -1,0 +1,5 @@
+# weights / unbundled models
+*.pt
+*.ts
+yolo26n-seg-drinks.mlpackage/
+yoloe-26n-seg.mlpackage/
