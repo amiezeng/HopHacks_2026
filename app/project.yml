@@ -14,6 +14,7 @@ targets:
           - project.yml
           - "*.xcodeproj"
           - build
+          - archive
       - path: ../models
         excludes:
           - "*.pt"
@@ -28,6 +29,7 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_NSCameraUsageDescription: "Camera is used to detect hands and objects with AR."
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "The microphone drives the water ripples on the home screen."
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

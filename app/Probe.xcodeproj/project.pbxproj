@@ -9,40 +9,50 @@
 /* Begin PBXBuildFile section */
 		191C045A950FDD5A295CDD0B /* BoundingBox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 272AB201EA684ECBB6A6DE24 /* BoundingBox.swift */; };
 		1C4112677B9292B4392B3C3D /* MainScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83C9D8DAB1B7AB3CD5F4CDE7 /* MainScreen.swift */; };
-		216524171F774A1ED9C741FB /* homeImage.png in Resources */ = {isa = PBXBuildFile; fileRef = DB6D23497E7DBD69C26B3220 /* homeImage.png */; };
 		2CEEA1F445DA57CB98D0BDA6 /* HandHighlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08C95FBFA6D313133260559A /* HandHighlight.swift */; };
 		2D239C92CA04D0DB9C877061 /* HomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25AE8B98C924BB363BF7AED8 /* HomeScreen.swift */; };
+		391B8B22F8E66954154253EC /* Floating.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CA05BACD95D4DD9D68FE3DC /* Floating.swift */; };
 		421484C7BD362AF1F18AAFFF /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ADA98FBD5C78F1B3857D0BC /* App.swift */; };
+		4708DF3DB51BFF4E08766703 /* PageTransition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943348DA5A76860DF7A00C9C /* PageTransition.swift */; };
 		52B158C1C0DFC46E6F3EE7D2 /* CameraController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2552798524A1C27CEC39EC8E /* CameraController.swift */; };
 		536A270FCAE7B83045493559 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D042B4C320C0A8030FCE89C3 /* ContentView.swift */; };
 		66D5DCF67111EBE36774E101 /* YOLOv10n_EGOHOS.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 1661E6CEAFB4C3F4E95D6F39 /* YOLOv10n_EGOHOS.mlpackage */; };
-		6DEADC511E763D27A2FBC7CA /* 2eye.png in Resources */ = {isa = PBXBuildFile; fileRef = 473C5E92A72C920AD3CD837F /* 2eye.png */; };
 		7CDDF775603879A49D65F52E /* yolo26n-seg.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 64F6761A78E6C7A20C73A1D1 /* yolo26n-seg.mlpackage */; };
-		9AB2FECE20B013C03F1B4BC6 /* FindButton.png in Resources */ = {isa = PBXBuildFile; fileRef = 52CC283EC693E22C6E2271CF /* FindButton.png */; };
+		A099AD42A5AFBE77CE205D88 /* WaterVisualizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E461E6687B4974F080215D52 /* WaterVisualizer.swift */; };
 		A595B93E55A795E64C1D6C8B /* Segmentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81F6B9BA60B38A233C43A596 /* Segmentation.swift */; };
 		B0C979EC02F0C4FD5B6048C7 /* ObjectDetection.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC836258EA6D85AF03B410B2 /* ObjectDetection.swift */; };
+		B2232D365B4B6691C1D0E66E /* EyeMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 167B060653111F9B3D3F7C72 /* EyeMotion.swift */; };
 		B2F826878AC92D43EFCB812B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 04022284DE5C3A42ACE8C238 /* Assets.xcassets */; };
+		B395B7B3FBEF4249FC1C6F2C /* MainArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D39750D2450B79995FB7009 /* MainArt.swift */; };
+		C02D354B64C321964111F0BF /* HomeArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = A79294FF0E3302AD38048183 /* HomeArt.swift */; };
+		D47952F7B88DFCDCD0009CD9 /* ArtLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6EB0867995CD53A7FDE9BDA /* ArtLayer.swift */; };
 		D716FA4AE2161C85EA0F4CC9 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6563B8BE5EBDABE5DDE83D5D /* CameraView.swift */; };
+		FD378C8B85B1306FFF03D430 /* AudioLevels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD463215E3C783458B577589 /* AudioLevels.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		04022284DE5C3A42ACE8C238 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		08C95FBFA6D313133260559A /* HandHighlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandHighlight.swift; sourceTree = "<group>"; };
-		1661E6CEAFB4C3F4E95D6F39 /* YOLOv10n_EGOHOS.mlpackage */ = {isa = PBXFileReference; path = YOLOv10n_EGOHOS.mlpackage; sourceTree = "<group>"; };
+		1661E6CEAFB4C3F4E95D6F39 /* YOLOv10n_EGOHOS.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = YOLOv10n_EGOHOS.mlpackage; sourceTree = "<group>"; };
+		167B060653111F9B3D3F7C72 /* EyeMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EyeMotion.swift; sourceTree = "<group>"; };
 		1ADA98FBD5C78F1B3857D0BC /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		1CA05BACD95D4DD9D68FE3DC /* Floating.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Floating.swift; sourceTree = "<group>"; };
 		2552798524A1C27CEC39EC8E /* CameraController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraController.swift; sourceTree = "<group>"; };
 		25AE8B98C924BB363BF7AED8 /* HomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreen.swift; sourceTree = "<group>"; };
 		272AB201EA684ECBB6A6DE24 /* BoundingBox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoundingBox.swift; sourceTree = "<group>"; };
-		473C5E92A72C920AD3CD837F /* 2eye.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = 2eye.png; sourceTree = "<group>"; };
-		52CC283EC693E22C6E2271CF /* FindButton.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = FindButton.png; sourceTree = "<group>"; };
-		64F6761A78E6C7A20C73A1D1 /* yolo26n-seg.mlpackage */ = {isa = PBXFileReference; path = "yolo26n-seg.mlpackage"; sourceTree = "<group>"; };
+		64F6761A78E6C7A20C73A1D1 /* yolo26n-seg.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = "yolo26n-seg.mlpackage"; sourceTree = "<group>"; };
 		6563B8BE5EBDABE5DDE83D5D /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
-		670DC86C0DB18949CDB87DC1 /* Probe.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Probe.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		670DC86C0DB18949CDB87DC1 /* Probe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Probe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		81F6B9BA60B38A233C43A596 /* Segmentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Segmentation.swift; sourceTree = "<group>"; };
 		83C9D8DAB1B7AB3CD5F4CDE7 /* MainScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainScreen.swift; sourceTree = "<group>"; };
+		943348DA5A76860DF7A00C9C /* PageTransition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageTransition.swift; sourceTree = "<group>"; };
+		9D39750D2450B79995FB7009 /* MainArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainArt.swift; sourceTree = "<group>"; };
+		A79294FF0E3302AD38048183 /* HomeArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeArt.swift; sourceTree = "<group>"; };
 		AC836258EA6D85AF03B410B2 /* ObjectDetection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetection.swift; sourceTree = "<group>"; };
+		B6EB0867995CD53A7FDE9BDA /* ArtLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtLayer.swift; sourceTree = "<group>"; };
+		CD463215E3C783458B577589 /* AudioLevels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevels.swift; sourceTree = "<group>"; };
 		D042B4C320C0A8030FCE89C3 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		DB6D23497E7DBD69C26B3220 /* homeImage.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = homeImage.png; sourceTree = "<group>"; };
+		E461E6687B4974F080215D52 /* WaterVisualizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterVisualizer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -76,20 +86,25 @@
 		B12232943ED274045182992C /* app */ = {
 			isa = PBXGroup;
 			children = (
-				473C5E92A72C920AD3CD837F /* 2eye.png */,
 				1ADA98FBD5C78F1B3857D0BC /* App.swift */,
+				B6EB0867995CD53A7FDE9BDA /* ArtLayer.swift */,
 				04022284DE5C3A42ACE8C238 /* Assets.xcassets */,
+				CD463215E3C783458B577589 /* AudioLevels.swift */,
 				272AB201EA684ECBB6A6DE24 /* BoundingBox.swift */,
 				2552798524A1C27CEC39EC8E /* CameraController.swift */,
 				6563B8BE5EBDABE5DDE83D5D /* CameraView.swift */,
 				D042B4C320C0A8030FCE89C3 /* ContentView.swift */,
-				52CC283EC693E22C6E2271CF /* FindButton.png */,
+				167B060653111F9B3D3F7C72 /* EyeMotion.swift */,
+				1CA05BACD95D4DD9D68FE3DC /* Floating.swift */,
 				08C95FBFA6D313133260559A /* HandHighlight.swift */,
-				DB6D23497E7DBD69C26B3220 /* homeImage.png */,
+				A79294FF0E3302AD38048183 /* HomeArt.swift */,
 				25AE8B98C924BB363BF7AED8 /* HomeScreen.swift */,
+				9D39750D2450B79995FB7009 /* MainArt.swift */,
 				83C9D8DAB1B7AB3CD5F4CDE7 /* MainScreen.swift */,
 				AC836258EA6D85AF03B410B2 /* ObjectDetection.swift */,
+				943348DA5A76860DF7A00C9C /* PageTransition.swift */,
 				81F6B9BA60B38A233C43A596 /* Segmentation.swift */,
+				E461E6687B4974F080215D52 /* WaterVisualizer.swift */,
 			);
 			name = app;
 			path = .;
@@ -154,10 +169,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6DEADC511E763D27A2FBC7CA /* 2eye.png in Resources */,
 				B2F826878AC92D43EFCB812B /* Assets.xcassets in Resources */,
-				9AB2FECE20B013C03F1B4BC6 /* FindButton.png in Resources */,
-				216524171F774A1ED9C741FB /* homeImage.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -169,15 +181,23 @@
 			buildActionMask = 2147483647;
 			files = (
 				421484C7BD362AF1F18AAFFF /* App.swift in Sources */,
+				D47952F7B88DFCDCD0009CD9 /* ArtLayer.swift in Sources */,
+				FD378C8B85B1306FFF03D430 /* AudioLevels.swift in Sources */,
 				191C045A950FDD5A295CDD0B /* BoundingBox.swift in Sources */,
 				52B158C1C0DFC46E6F3EE7D2 /* CameraController.swift in Sources */,
 				D716FA4AE2161C85EA0F4CC9 /* CameraView.swift in Sources */,
 				536A270FCAE7B83045493559 /* ContentView.swift in Sources */,
+				B2232D365B4B6691C1D0E66E /* EyeMotion.swift in Sources */,
+				391B8B22F8E66954154253EC /* Floating.swift in Sources */,
 				2CEEA1F445DA57CB98D0BDA6 /* HandHighlight.swift in Sources */,
+				C02D354B64C321964111F0BF /* HomeArt.swift in Sources */,
 				2D239C92CA04D0DB9C877061 /* HomeScreen.swift in Sources */,
+				B395B7B3FBEF4249FC1C6F2C /* MainArt.swift in Sources */,
 				1C4112677B9292B4392B3C3D /* MainScreen.swift in Sources */,
 				B0C979EC02F0C4FD5B6048C7 /* ObjectDetection.swift in Sources */,
+				4708DF3DB51BFF4E08766703 /* PageTransition.swift in Sources */,
 				A595B93E55A795E64C1D6C8B /* Segmentation.swift in Sources */,
+				A099AD42A5AFBE77CE205D88 /* WaterVisualizer.swift in Sources */,
 				66D5DCF67111EBE36774E101 /* YOLOv10n_EGOHOS.mlpackage in Sources */,
 				7CDDF775603879A49D65F52E /* yolo26n-seg.mlpackage in Sources */,
 			);
@@ -192,16 +212,17 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = QSP8TR2JV5;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "build/Build/Products/Debug-iphoneos/Probe.app/Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera is used to detect hands and objects with AR.";
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "The microphone drives the water ripples on the home screen.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.hophacks.probe;
+				PRODUCT_BUNDLE_IDENTIFIER = com.abirmodak.probe;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -333,16 +354,17 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = QSP8TR2JV5;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "build/Build/Products/Debug-iphoneos/Probe.app/Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera is used to detect hands and objects with AR.";
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "The microphone drives the water ripples on the home screen.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.hophacks.probe;
+				PRODUCT_BUNDLE_IDENTIFIER = com.abirmodak.probe;
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
