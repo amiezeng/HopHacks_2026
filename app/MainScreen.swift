@@ -15,26 +15,32 @@ struct MainScreen: View {
 
     var body: some View {
         VStack(spacing: 24) {
+            Spacer()
+
             Button(action: chooseFind) {
-                Text("A")
-                    .font(.title)
-                    .frame(width: 140, height: 60)
-                    .foregroundColor(.white)
-                    .background(Color.green)
+                Image("FindButton")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 330, height: 180)
+            }
+            .buttonStyle(.plain)
+
+            Button(action: chooseUnderstand) {
+                Text("Analyze")
+                    .font(.system(size: 52, weight: .bold))
+                    .rotationEffect(.degrees(90))
+                    .scaleEffect(x: 1, y: -1)
+                    .frame(width: 330, height: 180)
+                    .foregroundColor(Color(red: 22 / 255, green: 133 / 255, blue: 184 / 255))
+                    .background(Color.white)
                     .cornerRadius(12)
             }
 
-            Button(action: chooseUnderstand) {
-                Text("B")
-                    .font(.title)
-                    .frame(width: 140, height: 60)
-                    .foregroundColor(.white)
-                    .background(Color.orange)
-                    .cornerRadius(12)
-            }
+            Spacer()
+                .frame(height: 60)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.gray.opacity(0.15))
+        .background(Color(red: 43 / 255, green: 187 / 255, blue: 255 / 255))
         .overlay(alignment: .bottom) {
             if listener.isListening {
                 ListeningIndicator()
