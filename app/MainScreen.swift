@@ -44,6 +44,17 @@ struct MainScreen: View {
     @State private var lensSettled = false
     /// Same for the back button's glass (see `LiquidGlassLens`).
     @State private var backSettled = false
+    @State private var optionChosen = false
+    @State private var showFind = false
+    @State private var listenTask: Task<Void, Never>?
+    @StateObject private var listener = VoiceListener()
+
+    private let question = "Are you looking for something, or do you want help analyzing something?"
+    private let commands: [String: [String]] = [
+        "find": ["find", "locate", "position", "pinpoint", "looking for", "search"],
+        "understand": ["understand", "analyze", "analyse", "analyzing", "interpret"],
+        "repeat": ["repeat", "say that again", "one more time", "again", "pardon"]
+    ]
 
     var body: some View {
         // Layers of design/MainScreen.ai; each button nests its layers in an Artboard over its card.
@@ -51,7 +62,7 @@ struct MainScreen: View {
             WaterVisualizer(drops: audio.drops)
                 .artFrame(Self.visualizerFrame)
 
-            NavigationLink(destination: ContentView()) {
+            Button(action: chooseFind) {
                 Artboard(rect: MainArt.findCard.bounds) {
                     MainArt.findCard
                     MainArt.findLabel
@@ -69,11 +80,12 @@ struct MainScreen: View {
                         .lookOffset(eyes.look, amount: 0.35, tilt: 12)
                 }
             }
+            .buttonStyle(.plain)
             .modifier(Floating(tilt: motion.tilt, startAfter: 1.3))
             .modifier(LeafFall(delay: 0))
             .artFrame(MainArt.findCard.bounds.offsetBy(dx: 0, dy: Self.buttonDrop))
 
-            Button(action: {}) {
+            Button(action: chooseUnderstand) {
                 Artboard(rect: MainArt.analyzeCard.bounds) {
                     analyzeFace
                     magnifier
@@ -92,9 +104,33 @@ struct MainScreen: View {
         .clipped()
         .ignoresSafeArea()
         .overlay(alignment: .topLeading) { backButton }
+        .overlay(alignment: .bottom) {
+            if listener.isListening {
+                ListeningIndicator()
+            }
+        }
+        .animation(.easeInOut, value: listener.isListening)
+        .navigationDestination(isPresented: $showFind) {
+            ContentView(onBack: { showFind = false })
+        }
+        .onChange(of: showFind) { _, isShowing in
+            if !isShowing { Speaker.shared.stop() }
+        }
+        .task {
+            optionChosen = false
+            try? await Task.sleep(for: .seconds(0.5))
+            guard !Task.isCancelled, !optionChosen else { return }
+            Speaker.shared.speak(question)
+            await listenForCommands()
+        }
         .navigationBarBackButtonHidden(true)
         .onAppear { eyes.start(); motion.start(); audio.start() }
-        .onDisappear { eyes.stop(); motion.stop(); audio.stop() }
+        .onDisappear {
+            eyes.stop(); motion.stop(); audio.stop()
+            listenTask?.cancel()
+            listener.stop()
+            Speaker.shared.stop()
+        }
     }
 }
 
@@ -161,6 +197,38 @@ extension MainScreen {
         .artFrame(Self.magnifierBounds)
     }
 
+    private func choose(announcing message: String) {
+        optionChosen = true
+        listener.stop()
+        Speaker.shared.stop()
+        Speaker.shared.speak(message)
+    }
+
+    private func chooseFind() {
+        choose(announcing: "Find object selected")
+        showFind = true
+    }
+
+    private func chooseUnderstand() {
+        choose(announcing: "Analyze object selected")
+    }
+
+    private func listenForCommands() async {
+        await Speaker.shared.waitUntilIdle()
+        guard !Task.isCancelled, !optionChosen else { return }
+        await listener.start(commands: commands) { command in
+            switch command {
+            case "find":
+                chooseFind()
+            case "understand":
+                chooseUnderstand()
+            default:
+                Speaker.shared.speak(question)
+                listenTask = Task { await listenForCommands() }
+            }
+        }
+    }
+
     /// `point` (artboard points) as a fraction of `rect`, for a scale/rotation anchor.
     private static func anchor(_ point: CGPoint, in rect: CGRect) -> UnitPoint {
         UnitPoint(x: (point.x - rect.minX) / rect.width, y: (point.y - rect.minY) / rect.height)
@@ -222,5 +290,5 @@ private struct LiquidGlassLens: View {
 }
 
 #Preview {
-    MainScreen()
+    NavigationStack { MainScreen() }
 }
