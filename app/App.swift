@@ -4,7 +4,7 @@ import SwiftUI
 struct hophacks_prepApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            HomeScreen()
         }
     }
 }
