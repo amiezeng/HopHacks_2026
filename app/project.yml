@@ -14,6 +14,7 @@ targets:
           - project.yml
           - "*.xcodeproj"
           - build
+          - archive
       - path: ../models
         excludes:
           - "*.pt"
