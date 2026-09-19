@@ -27,7 +27,6 @@ struct ContentView: View {
                     detector.process(frame: frame)
                 }
                 arController.start()
-                Speaker.shared.speak("hello test test")
             }
             .onChange(of: detector.interactionConfidence) { _, confidence in
                 announcer.update(confidence: confidence)

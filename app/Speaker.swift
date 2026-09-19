@@ -1,22 +1,74 @@
 import AVFoundation
+import CryptoKit
+
+private struct SpeechRequest: Encodable {
+    struct VoiceSettings: Encodable {
+        let stability: Double
+        let speed: Double
+    }
+
+    let text: String
+    let model_id: String
+    let voice_settings: VoiceSettings
+}
 
 @MainActor
-final class Speaker {
+final class Speaker: NSObject, AVAudioPlayerDelegate {
     static let shared = Speaker()
 
     private let voiceID = "vChnJZ1Cu89g2XXumPfT"
     private let modelID = "eleven_flash_v2_5"
+    private let stability = 0.8
+    private let speed = 1.1
     private var player: AVAudioPlayer?
+    private var queue: [String] = []
+    private var worker: Task<Void, Never>?
+    private var playbackFinished: CheckedContinuation<Void, Never>?
 
     func speak(_ text: String) {
-        Task {
-            do {
-                let audio = try await fetchAudio(for: text)
-                try play(audio)
-            } catch {
-                print("Speaker error: \(error)")
+        queue.append(text)
+        guard worker == nil else { return }
+        worker = Task {
+            while !Task.isCancelled, !queue.isEmpty {
+                let text = queue.removeFirst()
+                do {
+                    let audio = try await loadAudio(for: text)
+                    guard !Task.isCancelled else { return }
+                    try await play(audio)
+                } catch {
+                    if Task.isCancelled { return }
+                    print("Speaker error: \(error)")
+                }
             }
+            if !Task.isCancelled { worker = nil }
         }
+    }
+
+    func stop() {
+        queue.removeAll()
+        worker?.cancel()
+        worker = nil
+        player?.stop()
+        finishPlayback()
+    }
+
+    // The key includes voice, model and settings, so changing any of them regenerates the audio.
+    private func cacheURL(for text: String) -> URL {
+        let key = "\(voiceID)|\(modelID)|\(stability)|\(speed)|\(text)"
+        let hash = SHA256.hash(data: Data(key.utf8)).map { String(format: "%02x", $0) }.joined()
+        return FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("speech", isDirectory: true)
+            .appendingPathComponent("\(hash).mp3")
+    }
+
+    private func loadAudio(for text: String) async throws -> Data {
+        let file = cacheURL(for: text)
+        if let cached = try? Data(contentsOf: file) { return cached }
+
+        let audio = try await fetchAudio(for: text)
+        try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? audio.write(to: file)
+        return audio
     }
 
     private func fetchAudio(for text: String) async throws -> Data {
@@ -25,7 +77,13 @@ final class Speaker {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(Secrets.elevenLabsAPIKey, forHTTPHeaderField: "xi-api-key")
-        request.httpBody = try JSONEncoder().encode(["text": text, "model_id": modelID])
+        request.httpBody = try JSONEncoder().encode(
+            SpeechRequest(
+                text: text,
+                model_id: modelID,
+                voice_settings: .init(stability: stability, speed: speed)
+            )
+        )
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
@@ -35,10 +93,28 @@ final class Speaker {
         return data
     }
 
-    private func play(_ data: Data) throws {
+    private func play(_ data: Data) async throws {
         try AVAudioSession.sharedInstance().setCategory(.playback)
         try AVAudioSession.sharedInstance().setActive(true)
-        player = try AVAudioPlayer(data: data)
-        player?.play()
+        let newPlayer = try AVAudioPlayer(data: data)
+        newPlayer.delegate = self
+        player = newPlayer
+        await withCheckedContinuation { continuation in
+            playbackFinished = continuation
+            newPlayer.play()
+        }
+    }
+
+    private func finishPlayback() {
+        playbackFinished?.resume()
+        playbackFinished = nil
+    }
+
+    // AVAudioPlayer.stop() doesn't call this, so stop() resumes the continuation itself.
+    nonisolated func audioPlayerDidFinishPlaying(_ finished: AVAudioPlayer, successfully flag: Bool) {
+        let id = ObjectIdentifier(finished)
+        Task { @MainActor in
+            if let current = player, ObjectIdentifier(current) == id { finishPlayback() }
+        }
     }
 }
