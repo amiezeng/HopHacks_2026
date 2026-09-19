@@ -1,10 +1,202 @@
 import SwiftUI
+import Combine
+import AVFoundation
+import AudioToolbox
+import UIKit
+
+final class DistanceBeepController: ObservableObject {
+    private let audioEngine = AVAudioEngine()
+    private let speechSynthesizer = AVSpeechSynthesizer()
+    private let directionFeedback = UIImpactFeedbackGenerator(style: .medium)
+    private let readReadyFeedback = UINotificationFeedbackGenerator()
+    private var sourceNode: AVAudioSourceNode?
+    private var toneVolume: Float = 0.08
+    private var isPlaying = false
+    private var promptStarted = false
+    private var isHorizontallyAligned = false
+    private var foundSoundPlayed = false
+    private var approachPromptPlayed = false
+    private var closePromptPlayed = false
+    private var readReadyHapticPlayed = false
+    private let samePlaneDistance: Float = 0.08
+    private let coordinateTolerance: CGFloat = 0.08
+
+    func startPrompt() {
+        guard !promptStarted else { return }
+        promptStarted = true
+        configureSpeechAudioSession()
+        speak("Move your hand forward until the tone gets louder.")
+    }
+
+    func update(
+        leftEdge: EdgeMeasurement?,
+        rightEdge: EdgeMeasurement?,
+        objectFound: Bool,
+        approaching: Bool,
+        objectClose: Bool
+    ) {
+        if objectFound {
+            if !foundSoundPlayed {
+                foundSoundPlayed = true
+                AudioServicesPlaySystemSound(1057)
+            }
+            stopTone()
+
+            if approaching && !objectClose && !approachPromptPlayed {
+                approachPromptPlayed = true
+                speak("Hold the bottle closer to the screen until it is close enough to read.")
+            } else if objectClose && !closePromptPlayed {
+                closePromptPlayed = true
+                if !readReadyHapticPlayed {
+                    readReadyHapticPlayed = true
+                    readReadyFeedback.prepare()
+                    readReadyFeedback.notificationOccurred(.success)
+                }
+                speak("The object is close enough to read.")
+            }
+            return
+        }
+
+        approachPromptPlayed = false
+        closePromptPlayed = false
+        readReadyHapticPlayed = false
+
+        let measurements: [EdgeMeasurement] = [leftEdge, rightEdge].compactMap { $0 }
+        guard let measurement = measurements
+            .filter({ $0.distance != nil })
+            .min(by: { ($0.distance ?? .greatestFiniteMagnitude) < ($1.distance ?? .greatestFiniteMagnitude) }),
+              let distance = measurement.distance else {
+            stopTone()
+            return
+        }
+
+        if speechSynthesizer.isSpeaking {
+            stopTone()
+            return
+        }
+
+        let xGap = measurement.edge.x - measurement.fingertip.x
+        let yGap = abs(measurement.edge.y - measurement.fingertip.y)
+        if distance <= samePlaneDistance {
+            if !isHorizontallyAligned {
+                isHorizontallyAligned = true
+                if abs(xGap) > coordinateTolerance || yGap <= coordinateTolerance {
+                    directionFeedback.prepare()
+                    directionFeedback.impactOccurred()
+                    let direction = xGap < 0 ? "left" : "right"
+                    speak("Move your hand \(direction) until you have the object.")
+                }
+            }
+            toneVolume = 0
+            return
+        }
+
+        if distance > samePlaneDistance + 0.04 {
+            isHorizontallyAligned = false
+        }
+
+        let closeness = max(0, min(1, 1 - distance / 0.8))
+        toneVolume = 0.04 + closeness * 0.16
+        startToneIfNeeded()
+    }
+
+    func stop() {
+        speechSynthesizer.stopSpeaking(at: .immediate)
+        promptStarted = false
+        isHorizontallyAligned = false
+        foundSoundPlayed = false
+        approachPromptPlayed = false
+        closePromptPlayed = false
+        readReadyHapticPlayed = false
+        stopTone()
+    }
+
+    func shutdown() {
+        stop()
+        tearDownAudio()
+    }
+
+    private func stopTone() {
+        toneVolume = 0
+    }
+
+    private func tearDownAudio() {
+        guard isPlaying else { return }
+        audioEngine.stop()
+        if let sourceNode {
+            audioEngine.detach(sourceNode)
+            self.sourceNode = nil
+        }
+        isPlaying = false
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    private func speak(_ text: String) {
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        utterance.rate = 0.48
+        utterance.volume = 1.0
+        speechSynthesizer.speak(utterance)
+    }
+
+    private func configureSpeechAudioSession() {
+        let audioSession = AVAudioSession.sharedInstance()
+        try? audioSession.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+        try? audioSession.setActive(true)
+    }
+
+    private func startToneIfNeeded() {
+        guard !isPlaying else { return }
+
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            try audioSession.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try audioSession.setActive(true)
+
+            let sampleRate = 44_100.0
+            guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1) else {
+                return
+            }
+            var phase = 0.0
+            var renderedVolume = 0.0
+            let phaseIncrement = 2.0 * Double.pi * 220.0 / sampleRate
+
+            let node = AVAudioSourceNode { [weak self] _, _, frameCount, audioBufferList in
+                let buffers = UnsafeMutableAudioBufferListPointer(audioBufferList)
+                for frame in 0..<Int(frameCount) {
+                    let targetVolume = Double(self?.toneVolume ?? 0)
+                    renderedVolume += (targetVolume - renderedVolume) * 0.002
+                    let sample = Float(sin(phase) * renderedVolume)
+                    phase += phaseIncrement
+                    if phase >= 2.0 * Double.pi { phase -= 2.0 * Double.pi }
+                    if buffers.count > 0 { buffers[0].mData?.assumingMemoryBound(to: Float.self)[frame] = sample }
+                }
+                return noErr
+            }
+
+            audioEngine.attach(node)
+            audioEngine.connect(node, to: audioEngine.mainMixerNode, format: format)
+            audioEngine.prepare()
+            try audioEngine.start()
+            sourceNode = node
+            isPlaying = true
+        } catch {
+            print("Unable to start directional proximity buzz: \(error)")
+            stop()
+        }
+    }
+
+    deinit {
+        shutdown()
+    }
+}
 
 struct ContentView: View {
     @StateObject private var arController = ARSessionController()
     // ObjectDetector runs Vision hand pose plus LiDAR distances (YOLO EGOHOS is disabled).
     @StateObject private var detector = ObjectDetector()
     @StateObject private var segmenter = SegmentationDetector()
+    @StateObject private var beepController = DistanceBeepController()
 
     var body: some View {
         // Full-screen geometry so the overlay covers the same area as the camera preview.
@@ -53,6 +245,7 @@ struct ContentView: View {
                     .padding(.top, 60)
             }
             .onAppear {
+                beepController.startPrompt()
                 arController.onFrame = { frame in
                     detector.process(frame: frame)
                     segmenter.process(frame: frame)
@@ -60,10 +253,26 @@ struct ContentView: View {
                 arController.start()
             }
             .onReceive(segmenter.$objectMask) { detector.objectMask = $0 }
+            .onReceive(
+                detector.$leftHandEdge
+                    .combineLatest(detector.$rightHandEdge, detector.$objectFound)
+                    .combineLatest(detector.$approaching, detector.$objectClose)
+            ) { measurements, approaching, objectClose in
+                let (leftEdge, rightEdge, objectFound) = measurements
+                beepController.update(
+                    leftEdge: leftEdge,
+                    rightEdge: rightEdge,
+                    objectFound: objectFound,
+                    approaching: approaching,
+                    objectClose: objectClose
+                )
+            }
+            .onDisappear {
+                beepController.shutdown()
+            }
             // Haptic tap when the hand reaches the object (`approaching` latches the first found, so grip
             // flicker while bringing it closer doesn't re-fire), and again once it's close enough to read.
             .sensoryFeedback(.success, trigger: detector.approaching) { _, active in active }
-            .sensoryFeedback(.success, trigger: detector.objectClose) { _, close in close }
         }
         .ignoresSafeArea()
     }

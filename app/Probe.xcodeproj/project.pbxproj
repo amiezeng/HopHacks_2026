@@ -28,16 +28,16 @@
 /* Begin PBXFileReference section */
 		04022284DE5C3A42ACE8C238 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		08C95FBFA6D313133260559A /* HandHighlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandHighlight.swift; sourceTree = "<group>"; };
-		1661E6CEAFB4C3F4E95D6F39 /* YOLOv10n_EGOHOS.mlpackage */ = {isa = PBXFileReference; path = YOLOv10n_EGOHOS.mlpackage; sourceTree = "<group>"; };
+		1661E6CEAFB4C3F4E95D6F39 /* YOLOv10n_EGOHOS.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = YOLOv10n_EGOHOS.mlpackage; sourceTree = "<group>"; };
 		1ADA98FBD5C78F1B3857D0BC /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		2552798524A1C27CEC39EC8E /* CameraController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraController.swift; sourceTree = "<group>"; };
 		25AE8B98C924BB363BF7AED8 /* HomeScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeScreen.swift; sourceTree = "<group>"; };
 		272AB201EA684ECBB6A6DE24 /* BoundingBox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoundingBox.swift; sourceTree = "<group>"; };
 		473C5E92A72C920AD3CD837F /* 2eye.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = 2eye.png; sourceTree = "<group>"; };
 		52CC283EC693E22C6E2271CF /* FindButton.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = FindButton.png; sourceTree = "<group>"; };
-		64F6761A78E6C7A20C73A1D1 /* yolo26n-seg.mlpackage */ = {isa = PBXFileReference; path = "yolo26n-seg.mlpackage"; sourceTree = "<group>"; };
+		64F6761A78E6C7A20C73A1D1 /* yolo26n-seg.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = "yolo26n-seg.mlpackage"; sourceTree = "<group>"; };
 		6563B8BE5EBDABE5DDE83D5D /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
-		670DC86C0DB18949CDB87DC1 /* Probe.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Probe.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		670DC86C0DB18949CDB87DC1 /* Probe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Probe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		81F6B9BA60B38A233C43A596 /* Segmentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Segmentation.swift; sourceTree = "<group>"; };
 		83C9D8DAB1B7AB3CD5F4CDE7 /* MainScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainScreen.swift; sourceTree = "<group>"; };
 		AC836258EA6D85AF03B410B2 /* ObjectDetection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetection.swift; sourceTree = "<group>"; };
@@ -192,8 +192,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = L6J6WPMVW3;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "build/Build/Products/Debug-iphoneos/Probe.app/Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera is used to detect hands and objects with AR.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -333,8 +333,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = L6J6WPMVW3;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "build/Build/Products/Debug-iphoneos/Probe.app/Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera is used to detect hands and objects with AR.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
