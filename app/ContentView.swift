@@ -1,9 +1,13 @@
 import SwiftUI
 
 struct ContentView: View {
+    var onBack: () -> Void = {}
+    @StateObject private var listener = VoiceListener()
     @StateObject private var arController = ARSessionController()
     @StateObject private var detector = ObjectDetector()
     @State private var announcer = InteractionAnnouncer()
+
+    private let backKeywords = ["go back", "back", "return", "previous", "exit", "leave", "quit", "cancel"]
 
     var body: some View {
         GeometryReader { geo in
@@ -28,6 +32,18 @@ struct ContentView: View {
                 }
                 arController.start()
             }
+            .overlay(alignment: .bottom) {
+                if listener.isListening {
+                    ListeningIndicator()
+                }
+            }
+            .animation(.easeInOut, value: listener.isListening)
+            .task {
+                await Speaker.shared.waitUntilIdle()
+                guard !Task.isCancelled else { return }
+                await listener.start(commands: ["back": backKeywords]) { _ in onBack() }
+            }
+            .onDisappear { listener.stop() }
             .onChange(of: detector.interactionConfidence) { _, confidence in
                 announcer.update(confidence: confidence)
             }

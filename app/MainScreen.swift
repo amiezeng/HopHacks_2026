@@ -14,58 +14,61 @@ struct MainScreen: View {
     ]
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                Button(action: chooseFind) {
-                    Text("A")
-                        .font(.title)
-                        .frame(width: 140, height: 60)
-                        .foregroundColor(.white)
-                        .background(Color.green)
-                        .cornerRadius(12)
-                }
+        VStack(spacing: 24) {
+            Button(action: chooseFind) {
+                Text("A")
+                    .font(.title)
+                    .frame(width: 140, height: 60)
+                    .foregroundColor(.white)
+                    .background(Color.green)
+                    .cornerRadius(12)
+            }
 
-                Button(action: chooseOption) {
-                    Text("B")
-                        .font(.title)
-                        .frame(width: 140, height: 60)
-                        .foregroundColor(.white)
-                        .background(Color.orange)
-                        .cornerRadius(12)
-                }
+            Button(action: chooseUnderstand) {
+                Text("B")
+                    .font(.title)
+                    .frame(width: 140, height: 60)
+                    .foregroundColor(.white)
+                    .background(Color.orange)
+                    .cornerRadius(12)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.gray.opacity(0.15))
-            .overlay(alignment: .bottom) {
-                if listener.isListening {
-                    ListeningIndicator()
-                }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.gray.opacity(0.15))
+        .overlay(alignment: .bottom) {
+            if listener.isListening {
+                ListeningIndicator()
             }
-            .animation(.easeInOut, value: listener.isListening)
-            .navigationDestination(isPresented: $showFind) { ContentView() }
-            .task {
-                optionChosen = false
-                try? await Task.sleep(for: .seconds(0.5))
-                guard !Task.isCancelled, !optionChosen else { return }
-                Speaker.shared.speak(question)
-                await listenForCommands()
-            }
-            .onDisappear {
-                listenTask?.cancel()
-                listener.stop()
-            }
+        }
+        .animation(.easeInOut, value: listener.isListening)
+        .navigationDestination(isPresented: $showFind) { ContentView(onBack: { showFind = false }) }
+        .task {
+            optionChosen = false
+            try? await Task.sleep(for: .seconds(0.5))
+            guard !Task.isCancelled, !optionChosen else { return }
+            Speaker.shared.speak(question)
+            await listenForCommands()
+        }
+        .onDisappear {
+            listenTask?.cancel()
+            listener.stop()
         }
     }
 
-    private func chooseOption() {
+    private func choose(announcing message: String) {
         optionChosen = true
         listener.stop()
         Speaker.shared.stop()
+        Speaker.shared.speak(message)
     }
 
     private func chooseFind() {
-        chooseOption()
+        choose(announcing: "Find object selected")
         showFind = true
+    }
+
+    private func chooseUnderstand() {
+        choose(announcing: "Understand object selected")
     }
 
     private func listenForCommands() async {
@@ -76,7 +79,7 @@ struct MainScreen: View {
             case "find":
                 chooseFind()
             case "understand":
-                chooseOption()
+                chooseUnderstand()
             default:
                 Speaker.shared.speak(question)
                 listenTask = Task { await listenForCommands() }
@@ -86,5 +89,5 @@ struct MainScreen: View {
 }
 
 #Preview {
-    MainScreen()
+    NavigationStack { MainScreen() }
 }
