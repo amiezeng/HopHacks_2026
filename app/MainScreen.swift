@@ -77,7 +77,7 @@ struct MainScreen: View {
     }
 
     private func chooseUnderstand() {
-        choose(announcing: "Understand object selected")
+        choose(announcing: "Analyze object selected")
     }
 
     private func listenForCommands() async {
