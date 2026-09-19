@@ -21,6 +21,8 @@
 		E5A1C0DE00000000000000B1 /* Speaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A1 /* Speaker.swift */; };
 		E5A1C0DE00000000000000B2 /* Secrets.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A2 /* Secrets.swift */; };
 		E5A1C0DE00000000000000B3 /* InteractionAnnouncer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A3 /* InteractionAnnouncer.swift */; };
+		E5A1C0DE00000000000000B4 /* VoiceListener.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A4 /* VoiceListener.swift */; };
+		E5A1C0DE00000000000000B5 /* ListeningIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A5 /* ListeningIndicator.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,6 +41,8 @@
 		E5A1C0DE00000000000000A1 /* Speaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Speaker.swift; sourceTree = "<group>"; };
 		E5A1C0DE00000000000000A2 /* Secrets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Secrets.swift; sourceTree = "<group>"; };
 		E5A1C0DE00000000000000A3 /* InteractionAnnouncer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionAnnouncer.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A4 /* VoiceListener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceListener.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A5 /* ListeningIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningIndicator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -68,6 +72,8 @@
 				6563B8BE5EBDABE5DDE83D5D /* CameraView.swift */,
 				D042B4C320C0A8030FCE89C3 /* ContentView.swift */,
 				08C95FBFA6D313133260559A /* HandHighlight.swift */,
+				E5A1C0DE00000000000000A5 /* ListeningIndicator.swift */,
+				E5A1C0DE00000000000000A4 /* VoiceListener.swift */,
 				E5A1C0DE00000000000000A3 /* InteractionAnnouncer.swift */,
 				E5A1C0DE00000000000000A2 /* Secrets.swift */,
 				E5A1C0DE00000000000000A1 /* Speaker.swift */,
@@ -162,6 +168,8 @@
 				E5A1C0DE00000000000000B2 /* Secrets.swift in Sources */,
 				E5A1C0DE00000000000000B1 /* Speaker.swift in Sources */,
 				E5A1C0DE00000000000000B3 /* InteractionAnnouncer.swift in Sources */,
+				E5A1C0DE00000000000000B4 /* VoiceListener.swift in Sources */,
+				E5A1C0DE00000000000000B5 /* ListeningIndicator.swift in Sources */,
 				2D5775A8D32C6E0B20AE98FD /* YOLOv10n_EGOHOS.mlpackage in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -178,6 +186,8 @@
 				DEVELOPMENT_TEAM = 67L8Z5V9UY;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera is used to detect hands and objects with AR.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Probe listens for your voice commands.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Probe uses speech recognition to understand your voice commands.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -319,6 +329,8 @@
 				DEVELOPMENT_TEAM = 67L8Z5V9UY;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera is used to detect hands and objects with AR.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Probe listens for your voice commands.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Probe uses speech recognition to understand your voice commands.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (

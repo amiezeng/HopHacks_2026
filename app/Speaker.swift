@@ -44,6 +44,19 @@ final class Speaker: NSObject, AVAudioPlayerDelegate {
         }
     }
 
+    func waitUntilIdle() async {
+        while worker != nil, !Task.isCancelled {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+    }
+
+    // .defaultToSpeaker keeps playback on the loudspeaker; recording mode otherwise uses the earpiece.
+    nonisolated static func configureAudioSession() throws {
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothA2DP])
+        try session.setActive(true)
+    }
+
     func stop() {
         queue.removeAll()
         worker?.cancel()
@@ -94,8 +107,7 @@ final class Speaker: NSObject, AVAudioPlayerDelegate {
     }
 
     private func play(_ data: Data) async throws {
-        try AVAudioSession.sharedInstance().setCategory(.playback)
-        try AVAudioSession.sharedInstance().setActive(true)
+        try Self.configureAudioSession()
         let newPlayer = try AVAudioPlayer(data: data)
         newPlayer.delegate = self
         player = newPlayer
