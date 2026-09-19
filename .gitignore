@@ -1,2 +1,4 @@
 .venv/
 *.pt
+CLAUDE.md
+app/build/
