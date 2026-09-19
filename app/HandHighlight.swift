@@ -1,10 +1,3 @@
-//
-//  HandHighlight.swift
-//  hophacks_prep
-//
-//  Created by Amie Zeng on 9/17/26.
-//
-
 import SwiftUI
 
 func convexHull(of points: [CGPoint]) -> [CGPoint] {

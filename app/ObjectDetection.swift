@@ -92,23 +92,26 @@ class ObjectDetector: ObservableObject {
 
     private func loadVNCoreMLModel(config: MLModelConfiguration) throws -> VNCoreMLModel {
         let modelNames = ["YOLOv10n_EGOHOS", "YOLOv10n_EGOHO", "YOLOv10nEGOHO", "yolo11n", "yolo11n_EGOHO"]
+        let modelExtensions = ["mlpackage", "mlmodel", "mlmodelc"]
 
         for name in modelNames {
-            if let mlmodelURL = Bundle.main.url(forResource: name, withExtension: "mlmodel") {
-                let model = try MLModel(contentsOf: mlmodelURL, configuration: config)
-                return try VNCoreMLModel(for: model)
-            }
-
-            if let mlmodelcURL = Bundle.main.url(forResource: name, withExtension: "mlmodelc") {
-                let model = try MLModel(contentsOf: mlmodelcURL, configuration: config)
-                return try VNCoreMLModel(for: model)
+            for ext in modelExtensions {
+                if let modelURL = Bundle.main.url(forResource: name, withExtension: ext) {
+                    let model = try MLModel(contentsOf: modelURL, configuration: config)
+                    return try VNCoreMLModel(for: model)
+                }
             }
         }
+
+        let ptFileExists = Bundle.main.url(forResource: "YOLOv10n_EGOHOS", withExtension: "pt") != nil
+        let message = ptFileExists
+            ? "A YOLO .pt checkpoint was found, but CoreML requires a converted .mlpackage or .mlmodel in the app bundle. Convert the model before running the app."
+            : "No YOLO CoreML model was found in the app bundle. Add a converted model such as YOLOv10n_EGOHOS.mlpackage or YOLOv10n_EGOHOS.mlmodel to the app target."
 
         throw NSError(
             domain: "ObjectDetection",
             code: 1,
-            userInfo: [NSLocalizedDescriptionKey: "No YOLO model was found in the app bundle. Add YOLOv10n_EGOHOS.mlpackage to the app target."]
+            userInfo: [NSLocalizedDescriptionKey: message]
         )
     }
 
@@ -313,7 +316,10 @@ class ObjectDetector: ObservableObject {
     }
 
     private func detectObjects(in pixelBuffer: CVPixelBuffer) {
-        guard let request = objectRequest else { return }
+        guard let request = objectRequest else {
+            print("Object detection request is not available because the CoreML model could not be loaded.")
+            return
+        }
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right)
         do {
             try handler.perform([request])
