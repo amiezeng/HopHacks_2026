@@ -1,10 +1,3 @@
-//
-//  ContentView.swift
-//  hophacks_prep
-//
-//  Created by Abir Modak on 9/6/26.
-//
-
 import SwiftUI
 
 struct ContentView: View {
