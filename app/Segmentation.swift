@@ -145,16 +145,19 @@ class SegmentationDetector: ObservableObject {
         (132, 56, 255), (82, 0, 133), (203, 56, 255), (255, 149, 200), (255, 55, 199)
     ]
 
+    static let defaultModelName = "yolo26n-seg"
+
     // modelName: compiled model in the bundle. "yolo26n-seg" (COCO) or "yoloe-26n-seg" (YOLOE with text
     // prompts baked in at export, see model_trainig_code/scripts/export_yoloe.py; not bundled yet).
-    init(modelName: String = "yolo26n-seg") {
+    // The model itself comes from ModelStore, which `Preloader` fills at launch, so this init doesn't
+    // read weights off disk while the screen it belongs to is being pushed.
+    init(modelName: String = SegmentationDetector.defaultModelName) {
         do {
-            guard let url = Bundle.main.url(forResource: modelName, withExtension: "mlmodelc") else {
+            guard let model = try ModelStore.model(names: [modelName]) else {
                 print("\(modelName) model not found in bundle")
                 status = "segmentation: model not found in bundle"
                 return
             }
-            let model = try MLModel(contentsOf: url, configuration: MLModelConfiguration())
             classNames = Self.parseClassNames(model.modelDescription.metadata[.creatorDefinedKey] as? [String: String])
             updateAllowedIndices()
             if let image = model.modelDescription.inputDescriptionsByName.values.first(where: { $0.type == .image })?.imageConstraint {

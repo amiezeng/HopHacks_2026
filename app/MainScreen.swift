@@ -9,40 +9,37 @@ import SwiftUI
 struct MainScreen: View {
     var onBack: () -> Void = {}
 
-    private static let magnifierBounds = MainArt.magnifier.bounds.union(MainArt.magnifierLens.bounds)
-
-    private static let analyzeCardBounds = MainArt.analyzeCard.bounds
-    /// Where the upright ANALYZE text sits: the artwork's (sideways) label rect turned on its side,
-    /// scaled to span the button with a margin, and centered on it.
-    private static let analyzeLabelFrame: CGRect = {
-        let card = MainArt.analyzeCard.bounds, label = MainArt.analyzeLabel.bounds
-        let scale = card.width * 0.86 / label.height
-        let size = CGSize(width: label.height * scale, height: label.width * scale)
-        return CGRect(x: card.midX - size.width / 2, y: card.midY - size.height / 2,
-                      width: size.width, height: size.height)
-    }()
-    private static let lensZoom: CGFloat = 1.7
-    /// How far the glass drifts with the eyes' look, as a fraction of its own height.
-    private static let lensDrift: CGFloat = 0.12
-    /// When the Analyze button has stopped tumbling: `LeafFall(delay: 0.25)` lands at 1.55 s and the
-    /// touch-down squash springs out by ~2.2 s.
-    private static let analyzeSettles: Double = 2.0
+    /// How much the magnifier's lens blows up the Analyze face. `Preloader` rasterizes that face at
+    /// this much over the display's resolution, so the letters under the glass stay sharp — off the
+    /// main actor, hence `nonisolated`.
+    nonisolated static let lensZoom: CGFloat = 1.7
     /// How far down the artboard both buttons sit from where they were drawn, clearing the water above
     /// them for `WaterVisualizer`.
-    private static let buttonDrop: CGFloat = 180
+    private static let buttonDrop: CGFloat = 110
     /// That open water, in artboard points (clear of the notch above and the Find button below).
-    private static let visualizerFrame = CGRect(x: 60, y: 130, width: 600, height: 570)
+    private static let visualizerFrame = CGRect(x: 60, y: 410, width: 600, height: 290)
+    /// Where "How can PROBE help you" bubbles up, above the water.
+    private static let titleFrame = CGRect(x: 20, y: 235, width: 680, height: 175)
 
-    /// When the back button has landed: `LeafFall(delay: 0.5)` lands at 1.8 s and its squash springs out
-    /// shortly after (see `analyzeSettles`).
-    private static let backSettles: Double = 2.25
+    /// How far above its resting place each button falls from (`LeafFall`), in points: just enough to
+    /// start off the top of the screen on the largest phone, so the whole fall is on screen. Analyze
+    /// rests lowest, so it comes from highest up and — every leaf falling at the same speed — lands last.
+    private static let findDrop: CGFloat = 700
+    private static let analyzeDrop: CGFloat = 980
+    private static let backDrop: CGFloat = 220
 
-    @StateObject private var eyes = EyeMotion()
-    @StateObject private var motion = MotionTilt()
-    @StateObject private var audio = AudioLevels()
-    /// Set once the Analyze button has landed; until then its lens is a plain disc (see `LiquidGlassLens`).
-    @State private var lensSettled = false
-    /// Same for the back button's glass (see `LiquidGlassLens`).
+    /// When each button touches down, measured from this screen appearing.
+    private static let findLands = LeafFall.landing(height: findDrop)
+    private static let analyzeLands = LeafFall.landing(height: analyzeDrop)
+    private static let backLands = LeafFall.landing(height: backDrop)
+    /// How long after a landing its touch-down squash has sprung out, and the glass can cross-fade in
+    /// (see `LiquidGlassLens`).
+    private static let glassSettles = 0.45
+
+    @State private var eyes = EyeMotion()
+    @State private var motion = MotionTilt()
+    @State private var audio = AudioLevels()
+    /// Set once the back button has landed; until then its glass is a plain disc (see `LiquidGlassLens`).
     @State private var backSettled = false
     @State private var optionChosen = false
     @State private var showFind = false
@@ -60,45 +57,23 @@ struct MainScreen: View {
     var body: some View {
         // Layers of design/MainScreen.ai; each button nests its layers in an Artboard over its card.
         Artboard(rect: MainArt.artboard) {
-            WaterVisualizer(drops: audio.drops)
+            WaterWell(audio: audio)
                 .artFrame(Self.visualizerFrame)
 
-            Button(action: chooseFind) {
-                Artboard(rect: MainArt.findCard.bounds) {
-                    MainArt.findCard
-                    MainArt.findLabel
-                    MainArt.findEyes
-                        .moodScale(eyes.mood, white: true)
-                        .blink(eyes.blinks)
-                        .lookOffset(eyes.look, amount: 0.35, tilt: 12)
-                    MainArt.findPupils
-                        .moodScale(eyes.mood, white: false)
-                        .lookOffset(eyes.look, amount: 1.1, tilt: 12)
-                        .blink(eyes.blinks)
-                    Eyelids(eye: MainArt.findEyes, color: MainArt.findCard.color, mood: eyes.mood, pair: true)
-                        .moodScale(eyes.mood, white: true)
-                        .blink(eyes.blinks)
-                        .lookOffset(eyes.look, amount: 0.35, tilt: 12)
-                }
-            }
-            .buttonStyle(.plain)
-            .modifier(Floating(tilt: motion.tilt, startAfter: 1.3))
-            .modifier(LeafFall(delay: 0))
-            .artFrame(MainArt.findCard.bounds.offsetBy(dx: 0, dy: Self.buttonDrop))
+            BubbleTitle()
+                .artFrame(Self.titleFrame)
+
+            Button(action: chooseFind) { FindFace(eyes: eyes) }
+                .buttonStyle(.plain)
+                .modifier(Floating(motion: motion, startAfter: Self.findLands))
+                .modifier(LeafFall(height: Self.findDrop))
+                .artFrame(MainArt.findCard.bounds.offsetBy(dx: 0, dy: Self.buttonDrop))
 
             Button(action: chooseUnderstand) {
-                Artboard(rect: MainArt.analyzeCard.bounds) {
-                    analyzeFace
-                    magnifier
-                }
+                AnalyzeFace(eyes: eyes, glassSettlesAfter: Self.analyzeLands + Self.glassSettles)
             }
-            .modifier(Floating(tilt: motion.tilt, startAfter: 1.55, phase: 0.5))
-            .modifier(LeafFall(delay: 0.25, sway: -45))
-            .task {
-                lensSettled = false
-                try? await Task.sleep(for: .seconds(Self.analyzeSettles))
-                withAnimation(.easeOut(duration: 0.45)) { lensSettled = true }
-            }
+            .modifier(Floating(motion: motion, startAfter: Self.analyzeLands, phase: 0.5))
+            .modifier(LeafFall(height: Self.analyzeDrop, sway: -45))
             .artFrame(MainArt.analyzeCard.bounds.offsetBy(dx: 0, dy: Self.buttonDrop))
         }
         .background(MainArt.background.color)
@@ -125,7 +100,9 @@ struct MainScreen: View {
         }
         .task {
             optionChosen = false
-            try? await Task.sleep(for: .seconds(0.5))
+            // Held until the last button has landed. Starting to speak still costs the main thread a
+            // little (see `Speaker.play`), and mid-fall that shows as the leaves hitching.
+            try? await Task.sleep(for: .seconds(Self.analyzeLands + 0.15))
             guard !Task.isCancelled, !optionChosen else { return }
             Speaker.shared.speak(question)
             await listenForCommands()
@@ -155,53 +132,15 @@ extension MainScreen {
                 .background(LiquidGlassLens(glass: backSettled))
                 .contentShape(Circle())
         }
-        .modifier(Floating(tilt: motion.tilt, startAfter: Self.backSettles, phase: 0.25))
-        .modifier(LeafFall(delay: 0.5, sway: 30))
+        .modifier(Floating(motion: motion, startAfter: Self.backLands, phase: 0.25))
+        .modifier(LeafFall(height: Self.backDrop, sway: 30))
         .padding(.leading, 24)
         .padding(.top, 60)
         .task {
             backSettled = false
-            try? await Task.sleep(for: .seconds(Self.backSettles))
+            try? await Task.sleep(for: .seconds(Self.backLands + Self.glassSettles))
             withAnimation(.easeOut(duration: 0.45)) { backSettled = true }
         }
-    }
-
-    /// Card + text, the part of the Analyze button the lens magnifies.
-    private var analyzeFace: some View {
-        Artboard(rect: Self.analyzeCardBounds) {
-            MainArt.analyzeCard
-            // ANALYZE is drawn sideways in the artwork, so it's turned a quarter turn to read across the
-            // button. Nesting it in its own Artboard is what lets `.artFrame` move it off the spot it was
-            // drawn at (an ArtLayer on its own always places itself at its artwork bounds).
-            Artboard(rect: MainArt.analyzeLabel.bounds) { MainArt.analyzeLabel }
-                .rotationEffect(.degrees(90))
-                .artFrame(Self.analyzeLabelFrame.turned)
-        }
-    }
-
-    /// The magnifying glass. It drifts around the button as the eyes look about — the glass keeps its
-    /// size, only its position moves — and what it magnifies is worked out from where it has drifted
-    /// to, so the letters swell as it passes over them.
-    private var magnifier: some View {
-        let drift = CGSize(width: eyes.look.x * Self.magnifierBounds.height * Self.lensDrift,
-                           height: eyes.look.y * Self.magnifierBounds.height * Self.lensDrift * 0.6)
-        let lens = MainArt.magnifierLens.bounds.offsetBy(dx: drift.width, dy: drift.height)
-        return Artboard(rect: Self.magnifierBounds) {
-            // Nested so `.artFrame` can move the layer off the spot it was drawn at; the tilt is
-            // anchored on the lens, so the handle swings while the lens stays under the glass.
-            Artboard(rect: MainArt.magnifier.bounds) { MainArt.magnifier }
-                .rotationEffect(.degrees(eyes.look.x * 12), anchor: Self.lensPin)
-                .artFrame(MainArt.magnifier.bounds.offsetBy(dx: drift.width, dy: drift.height))
-            // Magnified copy of the button face: it stays put under the glass, blown up about
-            // wherever the lens now is and clipped to it.
-            analyzeFace
-                .scaleEffect(Self.lensZoom, anchor: Self.anchor(lens.center, in: Self.analyzeCardBounds))
-                .clipShape(LensClip(card: Self.analyzeCardBounds, lens: lens))
-                .artFrame(Self.analyzeCardBounds)
-            LiquidGlassLens(glass: lensSettled)
-                .artFrame(lens)
-        }
-        .artFrame(Self.magnifierBounds)
     }
 
     private func choose(announcing message: String) {
@@ -236,6 +175,108 @@ extension MainScreen {
             }
         }
     }
+}
+
+/// The Find button's face. Its own view so that the eyes moving redraws just this, not the whole
+/// screen: `MainScreen` never reads `eyes`, so an update doesn't reach its body.
+private struct FindFace: View {
+    var eyes: EyeMotion
+
+    var body: some View {
+        Artboard(rect: MainArt.findCard.bounds) {
+            MainArt.findCard
+            MainArt.findLabel
+            MainArt.findEyes
+                .moodScale(eyes.mood, white: true)
+                .blink(eyes.blinks)
+                .lookOffset(eyes.look, amount: 0.35, tilt: 12)
+            MainArt.findPupils
+                .moodScale(eyes.mood, white: false)
+                .lookOffset(eyes.look, amount: 1.1, tilt: 12)
+                .blink(eyes.blinks)
+            Eyelids(eye: MainArt.findEyes, color: MainArt.findCard.color, mood: eyes.mood, pair: true)
+                .moodScale(eyes.mood, white: true)
+                .blink(eyes.blinks)
+                .lookOffset(eyes.look, amount: 0.35, tilt: 12)
+        }
+    }
+}
+
+/// The Analyze button's face, under its magnifying glass. Its own view for the same reason as
+/// `FindFace` — and it matters more here, because the face is drawn twice (once plain, once
+/// magnified through the lens), so every redraw of it costs double.
+private struct AnalyzeFace: View {
+    var eyes: EyeMotion
+    /// When the lens can stop being a plain disc and cross-fade into real glass (see `LiquidGlassLens`).
+    var glassSettlesAfter: Double
+
+    private static let magnifierBounds = MainArt.magnifier.bounds.union(MainArt.magnifierLens.bounds)
+    private static let cardBounds = MainArt.analyzeCard.bounds
+    /// Where the upright ANALYZE text sits: the artwork's (sideways) label rect turned on its side,
+    /// scaled to span the button with a margin, and centered on it.
+    private static let labelFrame: CGRect = {
+        let card = MainArt.analyzeCard.bounds, label = MainArt.analyzeLabel.bounds
+        let scale = card.width * 0.86 / label.height
+        let size = CGSize(width: label.height * scale, height: label.width * scale)
+        return CGRect(x: card.midX - size.width / 2, y: card.midY - size.height / 2,
+                      width: size.width, height: size.height)
+    }()
+    /// How far the glass drifts with the eyes' look, as a fraction of its own height.
+    private static let lensDrift: CGFloat = 0.12
+
+    /// Set once the button has landed; until then its lens is a plain disc (see `LiquidGlassLens`).
+    @State private var lensSettled = false
+
+    var body: some View {
+        Artboard(rect: MainArt.analyzeCard.bounds) {
+            face
+            magnifier
+        }
+        .task {
+            lensSettled = false
+            try? await Task.sleep(for: .seconds(glassSettlesAfter))
+            withAnimation(.easeOut(duration: 0.45)) { lensSettled = true }
+        }
+    }
+
+    /// Card + text, the part of the button the lens magnifies.
+    private var face: some View {
+        Artboard(rect: Self.cardBounds) {
+            MainArt.analyzeCard
+            // ANALYZE is drawn sideways in the artwork, so it's turned a quarter turn to read across the
+            // button. Nesting it in its own Artboard is what lets `.artFrame` move it off the spot it was
+            // drawn at (an ArtLayer on its own always places itself at its artwork bounds).
+            Artboard(rect: MainArt.analyzeLabel.bounds) { MainArt.analyzeLabel }
+                .rotationEffect(.degrees(90))
+                .artFrame(Self.labelFrame.turned)
+        }
+    }
+
+    /// The magnifying glass. It drifts around the button as the eyes look about — the glass keeps its
+    /// size, only its position moves — and what it magnifies is worked out from where it has drifted
+    /// to, so the letters swell as it passes over them.
+    private var magnifier: some View {
+        let drift = CGSize(width: eyes.look.x * Self.magnifierBounds.height * Self.lensDrift,
+                           height: eyes.look.y * Self.magnifierBounds.height * Self.lensDrift * 0.6)
+        let lens = MainArt.magnifierLens.bounds.offsetBy(dx: drift.width, dy: drift.height)
+        return Artboard(rect: Self.magnifierBounds) {
+            // Nested so `.artFrame` can move the layer off the spot it was drawn at; the tilt is
+            // anchored on the lens, so the handle swings while the lens stays under the glass.
+            Artboard(rect: MainArt.magnifier.bounds) { MainArt.magnifier }
+                .rotationEffect(.degrees(eyes.look.x * 12), anchor: Self.lensPin)
+                .artFrame(MainArt.magnifier.bounds.offsetBy(dx: drift.width, dy: drift.height))
+            // Magnified copy of the button face: it stays put under the glass, blown up about
+            // wherever the lens now is and clipped to it.
+            face
+                .environment(\.artOversample, MainScreen.lensZoom)
+                .scaleEffect(MainScreen.lensZoom, anchor: Self.anchor(lens.center, in: Self.cardBounds))
+                .clipShape(LensClip(card: Self.cardBounds, lens: lens))
+                .artFrame(Self.cardBounds)
+            LiquidGlassLens(glass: lensSettled)
+                .artFrame(lens)
+        }
+        .artFrame(Self.magnifierBounds)
+    }
 
     /// `point` (artboard points) as a fraction of `rect`, for a scale/rotation anchor.
     private static func anchor(_ point: CGPoint, in rect: CGRect) -> UnitPoint {
@@ -243,6 +284,16 @@ extension MainScreen {
     }
 
     private static let lensPin = anchor(MainArt.magnifierLens.bounds.center, in: MainArt.magnifier.bounds)
+}
+
+/// The open water, listening. Its own view so the drops arriving (a few dozen times a second while
+/// there is any sound) redraw only the water and not the buttons over it.
+private struct WaterWell: View {
+    var audio: AudioLevels
+
+    var body: some View {
+        WaterVisualizer(drops: audio.drops)
+    }
 }
 
 private extension CGRect {

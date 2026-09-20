@@ -14,9 +14,21 @@ struct WaterVisualizer: View {
                                              CGPoint(x: 0.5, y: 0.3),
                                              CGPoint(x: 0.8, y: 0.58)]
 
+    /// How far past the view's frame the canvas extends on every side, so rings spreading out of the
+    /// patches aren't cut off at its edge. Everything is still laid out against the view's own frame.
+    private static let bleed: CGFloat = 2000
+
     var body: some View {
-        TimelineView(.animation) { timeline in
-            Canvas { context, size in
+        // Paused while the water is still: an empty `Canvas` is cheap to draw but not free to commit,
+        // and a screen-sized one asking for a frame 60 (or 120) times a second next to the buttons'
+        // animations is main-thread time spent drawing nothing at all.
+        TimelineView(.animation(paused: drops.isEmpty)) { timeline in
+            // Drawn off the main thread: it's decorative, and a screenful of rings every frame is work
+            // the buttons' animations need the main thread for.
+            Canvas(rendersAsynchronously: true) { context, canvasSize in
+                let size = CGSize(width: canvasSize.width - 2 * Self.bleed,
+                                  height: canvasSize.height - 2 * Self.bleed)
+                context.translateBy(x: Self.bleed, y: Self.bleed)
                 let now = timeline.date.timeIntervalSinceReferenceDate
                 // How far from its patch's middle a drop can land, and how wide the rings it throws
                 // can grow. Between them the water gets rained on all over, not tapped in three spots.
@@ -53,6 +65,7 @@ struct WaterVisualizer: View {
                     }
                 }
             }
+            .padding(-Self.bleed)
         }
         .allowsHitTesting(false)
     }
