@@ -55,6 +55,7 @@ struct HomeScreen: View {
             }
             .ignoresSafeArea()
         }
+        .background(VolumeHUDHider())
     }
 
     /// Swaps the stack's root without any animation.

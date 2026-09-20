@@ -46,6 +46,7 @@ struct MainScreen: View {
     @State private var backSettled = false
     @State private var optionChosen = false
     @State private var showFind = false
+    @State private var showAnalyze = false
     @State private var listenTask: Task<Void, Never>?
     @StateObject private var listener = VoiceListener()
 
@@ -113,7 +114,13 @@ struct MainScreen: View {
         .navigationDestination(isPresented: $showFind) {
             ContentView(onBack: { showFind = false })
         }
+        .navigationDestination(isPresented: $showAnalyze) {
+            AnalyzeView(onBack: { showAnalyze = false })
+        }
         .onChange(of: showFind) { _, isShowing in
+            if !isShowing { Speaker.shared.stop() }
+        }
+        .onChange(of: showAnalyze) { _, isShowing in
             if !isShowing { Speaker.shared.stop() }
         }
         .task {
@@ -211,6 +218,7 @@ extension MainScreen {
 
     private func chooseUnderstand() {
         choose(announcing: "Analyze object selected")
+        showAnalyze = true
     }
 
     private func listenForCommands() async {

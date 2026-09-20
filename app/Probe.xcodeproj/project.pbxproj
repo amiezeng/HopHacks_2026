@@ -32,7 +32,14 @@
 		E5A1C0DE00000000000000B4 /* VoiceListener.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A4 /* VoiceListener.swift */; };
 		E5A1C0DE00000000000000B5 /* ListeningIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A5 /* ListeningIndicator.swift */; };
 		E5A1C0DE00000000000000B6 /* TargetParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A6 /* TargetParser.swift */; };
+		E5A1C0DE00000000000000B7 /* ElevenLabs in Frameworks */ = {isa = PBXBuildFile; productRef = E5A1C0DE00000000000000C2 /* ElevenLabs */; };
+		E5A1C0DE00000000000000B8 /* AgentSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A7 /* AgentSession.swift */; };
+		E5A1C0DE00000000000000B9 /* VolumeHUDHider.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A8 /* VolumeHUDHider.swift */; };
+		E5A1C0DE00000000000000BA /* TextReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A9 /* TextReader.swift */; };
+		E5A1C0DE00000000000000BB /* AnalyzeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000AA /* AnalyzeView.swift */; };
+		E5A1C0DE00000000000000BC /* TextConsolidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000AB /* TextConsolidator.swift */; };
 		FD378C8B85B1306FFF03D430 /* AudioLevels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD463215E3C783458B577589 /* AudioLevels.swift */; };
+		E5A1C0DE00000000000000B2 /* Secrets.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A2 /* Secrets.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -57,13 +64,31 @@
 		B6EB0867995CD53A7FDE9BDA /* ArtLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtLayer.swift; sourceTree = "<group>"; };
 		CD463215E3C783458B577589 /* AudioLevels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevels.swift; sourceTree = "<group>"; };
 		D042B4C320C0A8030FCE89C3 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		DB6D23497E7DBD69C26B3220 /* homeImage.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = homeImage.png; sourceTree = "<group>"; };
 		E5A1C0DE00000000000000A1 /* Speaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Speaker.swift; sourceTree = "<group>"; };
 		E5A1C0DE00000000000000A3 /* InteractionAnnouncer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractionAnnouncer.swift; sourceTree = "<group>"; };
 		E5A1C0DE00000000000000A4 /* VoiceListener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceListener.swift; sourceTree = "<group>"; };
 		E5A1C0DE00000000000000A5 /* ListeningIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningIndicator.swift; sourceTree = "<group>"; };
 		E5A1C0DE00000000000000A6 /* TargetParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetParser.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A7 /* AgentSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSession.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A8 /* VolumeHUDHider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeHUDHider.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A9 /* TextReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextReader.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000AA /* AnalyzeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyzeView.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000AB /* TextConsolidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextConsolidator.swift; sourceTree = "<group>"; };
 		E461E6687B4974F080215D52 /* WaterVisualizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterVisualizer.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A2 /* Secrets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Secrets.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E5A1C0DE00000000000000D1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E5A1C0DE00000000000000B7 /* ElevenLabs in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		1ACCD3A56B4BF8334F3423E1 /* Products */ = {
@@ -107,8 +132,16 @@
 				167B060653111F9B3D3F7C72 /* EyeMotion.swift */,
 				1CA05BACD95D4DD9D68FE3DC /* Floating.swift */,
 				08C95FBFA6D313133260559A /* HandHighlight.swift */,
-				E5A1C0DE00000000000000A3 /* InteractionAnnouncer.swift */,
+				E5A1C0DE00000000000000AB /* TextConsolidator.swift */,
+				E5A1C0DE00000000000000AA /* AnalyzeView.swift */,
+				E5A1C0DE00000000000000A9 /* TextReader.swift */,
+				E5A1C0DE00000000000000A8 /* VolumeHUDHider.swift */,
+				E5A1C0DE00000000000000A7 /* AgentSession.swift */,
+				E5A1C0DE00000000000000A6 /* TargetParser.swift */,
 				E5A1C0DE00000000000000A5 /* ListeningIndicator.swift */,
+				E5A1C0DE00000000000000A4 /* VoiceListener.swift */,
+				E5A1C0DE00000000000000A2 /* Secrets.swift */,
+				E5A1C0DE00000000000000A3 /* InteractionAnnouncer.swift */,
 				A79294FF0E3302AD38048183 /* HomeArt.swift */,
 				25AE8B98C924BB363BF7AED8 /* HomeScreen.swift */,
 				9D39750D2450B79995FB7009 /* MainArt.swift */,
@@ -117,8 +150,6 @@
 				943348DA5A76860DF7A00C9C /* PageTransition.swift */,
 				81F6B9BA60B38A233C43A596 /* Segmentation.swift */,
 				E5A1C0DE00000000000000A1 /* Speaker.swift */,
-				E5A1C0DE00000000000000A6 /* TargetParser.swift */,
-				E5A1C0DE00000000000000A4 /* VoiceListener.swift */,
 				E461E6687B4974F080215D52 /* WaterVisualizer.swift */,
 			);
 			name = app;
@@ -133,6 +164,7 @@
 			buildConfigurationList = 994AE47A9D06B34933CCECDF /* Build configuration list for PBXNativeTarget "Probe" */;
 			buildPhases = (
 				12038353AE89A7B6471BFFB5 /* Sources */,
+				E5A1C0DE00000000000000D1 /* Frameworks */,
 				C9B0A9EF8D8F1665DD1480A1 /* Resources */,
 			);
 			buildRules = (
@@ -141,6 +173,7 @@
 			);
 			name = Probe;
 			packageProductDependencies = (
+				E5A1C0DE00000000000000C2 /* ElevenLabs */,
 			);
 			productName = Probe;
 			productReference = 670DC86C0DB18949CDB87DC1 /* Probe.app */;
@@ -169,6 +202,9 @@
 			);
 			mainGroup = A6BDC90C598E12E8EFC5D4D8;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E5A1C0DE00000000000000C1 /* XCRemoteSwiftPackageReference "elevenlabs-swift-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1ACCD3A56B4BF8334F3423E1 /* Products */;
 			projectDirPath = "";
@@ -215,7 +251,13 @@
 				E5A1C0DE00000000000000B1 /* Speaker.swift in Sources */,
 				E5A1C0DE00000000000000B3 /* InteractionAnnouncer.swift in Sources */,
 				E5A1C0DE00000000000000B4 /* VoiceListener.swift in Sources */,
+				E5A1C0DE00000000000000B2 /* Secrets.swift in Sources */,
 				E5A1C0DE00000000000000B5 /* ListeningIndicator.swift in Sources */,
+				E5A1C0DE00000000000000BC /* TextConsolidator.swift in Sources */,
+				E5A1C0DE00000000000000BB /* AnalyzeView.swift in Sources */,
+				E5A1C0DE00000000000000BA /* TextReader.swift in Sources */,
+				E5A1C0DE00000000000000B9 /* VolumeHUDHider.swift in Sources */,
+				E5A1C0DE00000000000000B8 /* AgentSession.swift in Sources */,
 				E5A1C0DE00000000000000B6 /* TargetParser.swift in Sources */,
 				A099AD42A5AFBE77CE205D88 /* WaterVisualizer.swift in Sources */,
 				66D5DCF67111EBE36774E101 /* YOLOv10n_EGOHOS.mlpackage in Sources */,
@@ -234,7 +276,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = QSP8TR2JV5;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "build/Build/Products/Debug-iphoneos/Probe.app/Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera is used to detect hands and objects with AR.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Probe listens for your voice commands.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Probe uses speech recognition to understand your voice commands.";
@@ -377,7 +418,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = QSP8TR2JV5;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "build/Build/Products/Debug-iphoneos/Probe.app/Info.plist";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Camera is used to detect hands and objects with AR.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Probe listens for your voice commands.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Probe uses speech recognition to understand your voice commands.";
@@ -415,6 +455,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E5A1C0DE00000000000000C1 /* XCRemoteSwiftPackageReference "elevenlabs-swift-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/elevenlabs/elevenlabs-swift-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.3.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E5A1C0DE00000000000000C2 /* ElevenLabs */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E5A1C0DE00000000000000C1 /* XCRemoteSwiftPackageReference "elevenlabs-swift-sdk" */;
+			productName = ElevenLabs;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 587D90692CD26D0EA2FE6ACC /* Project object */;
 }
