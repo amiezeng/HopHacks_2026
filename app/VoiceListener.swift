@@ -1,13 +1,17 @@
 import AVFoundation
 import Speech
 
+private enum ListenerError: Error {
+    case noInputFormat
+}
+
 @MainActor
 final class VoiceListener: ObservableObject {
     @Published private(set) var isListening = false
     @Published private(set) var transcript = ""
 
     private let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
-    private let audioEngine = AVAudioEngine()
+    private var audioEngine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var commands: [String: [String]] = [:]
@@ -65,8 +69,14 @@ final class VoiceListener: ObservableObject {
             request.contextualStrings = commands.values.flatMap { $0 }
             request.requiresOnDeviceRecognition = recognizer.supportsOnDeviceRecognition
 
-            audioEngine.inputNode.removeTap(onBus: 0)
-            Self.installTap(on: audioEngine.inputNode, feeding: request)
+            // A new engine each time, so it reads the hardware format as it is now (another audio
+            // session, like the agent's, may have changed the sample rate since the last one).
+            audioEngine = AVAudioEngine()
+            let format = audioEngine.inputNode.inputFormat(forBus: 0)
+            guard format.sampleRate > 0, format.channelCount > 0 else {
+                throw ListenerError.noInputFormat
+            }
+            Self.installTap(on: audioEngine.inputNode, format: format, feeding: request)
             audioEngine.prepare()
             try audioEngine.start()
 
@@ -150,12 +160,7 @@ final class VoiceListener: ObservableObject {
     }
 
     private func matchedCommand(in text: String) -> String? {
-        let allowed = CharacterSet.letters.union(CharacterSet(charactersIn: "'"))
-        let words = text.lowercased().components(separatedBy: allowed.inverted).filter { !$0.isEmpty }
-        let padded = " " + words.joined(separator: " ") + " "
-        return commands.first { _, keywords in
-            keywords.contains { padded.contains(" \($0) ") }
-        }?.key
+        commands.first { _, keywords in KeywordMatcher.matches(text, in: keywords) }?.key
     }
 
     private func requestPermissions() async -> Bool {
@@ -167,8 +172,8 @@ final class VoiceListener: ObservableObject {
     }
 
     // These closures run on audio/recognition threads, so they're built outside the main actor.
-    private nonisolated static func installTap(on input: AVAudioInputNode, feeding request: SFSpeechAudioBufferRecognitionRequest) {
-        input.installTap(onBus: 0, bufferSize: 1024, format: input.outputFormat(forBus: 0)) { buffer, _ in
+    private nonisolated static func installTap(on input: AVAudioInputNode, format: AVAudioFormat, feeding request: SFSpeechAudioBufferRecognitionRequest) {
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
             request.append(buffer)
         }
     }
@@ -181,5 +186,18 @@ final class VoiceListener: ObservableObject {
         recognizer.recognitionTask(with: request) { result, error in
             onUpdate(result?.bestTranscription.formattedString, result?.isFinal == true || error != nil)
         }
+    }
+}
+
+enum KeywordMatcher {
+    /// True if any keyword or phrase appears in `text` as whole words.
+    static func matches(_ text: String, in keywords: [String]) -> Bool {
+        let allowed = CharacterSet.letters.union(CharacterSet(charactersIn: "'"))
+        let words = text.lowercased()
+            .replacingOccurrences(of: "’", with: "'")
+            .components(separatedBy: allowed.inverted)
+            .filter { !$0.isEmpty }
+        let padded = " " + words.joined(separator: " ") + " "
+        return keywords.contains { padded.contains(" \($0) ") }
     }
 }

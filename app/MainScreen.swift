@@ -5,6 +5,7 @@ struct MainScreen: View {
     @State private var showFind = false
     @State private var listenTask: Task<Void, Never>?
     @StateObject private var listener = VoiceListener()
+    @StateObject private var agent = AgentSession()
 
     private let question = "Are you looking for something, or do you want help analyzing something?"
     private let commands: [String: [String]] = [
@@ -42,16 +43,20 @@ struct MainScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(red: 43 / 255, green: 187 / 255, blue: 255 / 255))
         .overlay(alignment: .bottom) {
-            if listener.isListening {
+            if agent.isRunning {
+                ListeningIndicator(status: agent.status)
+            } else if listener.isListening {
                 ListeningIndicator()
             }
         }
         .animation(.easeInOut, value: listener.isListening)
+        .animation(.easeInOut, value: agent.status)
         .navigationDestination(isPresented: $showFind) { ContentView(onBack: { showFind = false }) }
         .onChange(of: showFind) { _, isShowing in
             if !isShowing { Speaker.shared.stop() }
         }
         .task {
+            agent.onEndRequested = { endAgentConversation() }
             optionChosen = false
             try? await Task.sleep(for: .seconds(0.5))
             guard !Task.isCancelled, !optionChosen else { return }
@@ -61,11 +66,13 @@ struct MainScreen: View {
         .onDisappear {
             listenTask?.cancel()
             listener.stop()
+            agent.stop()
         }
     }
 
     private func choose(announcing message: String) {
         optionChosen = true
+        agent.stop()
         listener.stop()
         Speaker.shared.stop()
         Speaker.shared.speak(message)
@@ -77,7 +84,33 @@ struct MainScreen: View {
     }
 
     private func chooseUnderstand() {
+        // Tapping Analyze again ends the conversation.
+        if agent.isRunning {
+            endAgentConversation()
+            return
+        }
+
         choose(announcing: "Analyze object selected")
+        listenTask?.cancel()
+        listenTask = Task {
+            await Speaker.shared.waitUntilIdle()
+            guard !Task.isCancelled else { return }
+            agent.start()
+        }
+    }
+
+    // Ends the conversation (by tap or by voice), then asks the question again before listening for a choice.
+    private func endAgentConversation() {
+        agent.stop()
+        optionChosen = false
+        listenTask?.cancel()
+        listenTask = Task {
+            await agent.waitUntilStopped()
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled, !optionChosen else { return }
+            Speaker.shared.speak(question)
+            await listenForCommands()
+        }
     }
 
     private func listenForCommands() async {
