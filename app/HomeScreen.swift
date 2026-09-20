@@ -49,6 +49,7 @@ struct HomeScreen: View {
             }
             .onDisappear { listener.stop() }
         }
+        .background(VolumeHUDHider())
     }
 }
 

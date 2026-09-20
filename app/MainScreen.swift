@@ -3,6 +3,7 @@ import SwiftUI
 struct MainScreen: View {
     @State private var optionChosen = false
     @State private var showFind = false
+    @State private var showAnalyze = false
     @State private var listenTask: Task<Void, Never>?
     @StateObject private var listener = VoiceListener()
     @StateObject private var agent = AgentSession()
@@ -52,7 +53,11 @@ struct MainScreen: View {
         .animation(.easeInOut, value: listener.isListening)
         .animation(.easeInOut, value: agent.status)
         .navigationDestination(isPresented: $showFind) { ContentView(onBack: { showFind = false }) }
+        .navigationDestination(isPresented: $showAnalyze) { AnalyzeView(onBack: { showAnalyze = false }) }
         .onChange(of: showFind) { _, isShowing in
+            if !isShowing { Speaker.shared.stop() }
+        }
+        .onChange(of: showAnalyze) { _, isShowing in
             if !isShowing { Speaker.shared.stop() }
         }
         .task {
@@ -84,19 +89,8 @@ struct MainScreen: View {
     }
 
     private func chooseUnderstand() {
-        // Tapping Analyze again ends the conversation.
-        if agent.isRunning {
-            endAgentConversation()
-            return
-        }
-
         choose(announcing: "Analyze object selected")
-        listenTask?.cancel()
-        listenTask = Task {
-            await Speaker.shared.waitUntilIdle()
-            guard !Task.isCancelled else { return }
-            agent.start()
-        }
+        showAnalyze = true
     }
 
     // Ends the conversation (by tap or by voice), then asks the question again before listening for a choice.

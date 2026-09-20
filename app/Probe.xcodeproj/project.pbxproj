@@ -32,6 +32,9 @@
 		E5A1C0DE00000000000000B7 /* ElevenLabs in Frameworks */ = {isa = PBXBuildFile; productRef = E5A1C0DE00000000000000C2 /* ElevenLabs */; };
 		E5A1C0DE00000000000000B8 /* AgentSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A7 /* AgentSession.swift */; };
 		E5A1C0DE00000000000000B9 /* VolumeHUDHider.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A8 /* VolumeHUDHider.swift */; };
+		E5A1C0DE00000000000000BA /* TextReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A9 /* TextReader.swift */; };
+		E5A1C0DE00000000000000BB /* AnalyzeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000AA /* AnalyzeView.swift */; };
+		E5A1C0DE00000000000000BC /* TextConsolidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000AB /* TextConsolidator.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -60,6 +63,9 @@
 		E5A1C0DE00000000000000A6 /* TargetParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetParser.swift; sourceTree = "<group>"; };
 		E5A1C0DE00000000000000A7 /* AgentSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSession.swift; sourceTree = "<group>"; };
 		E5A1C0DE00000000000000A8 /* VolumeHUDHider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeHUDHider.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A9 /* TextReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextReader.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000AA /* AnalyzeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyzeView.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000AB /* TextConsolidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextConsolidator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -113,6 +119,9 @@
 				D042B4C320C0A8030FCE89C3 /* ContentView.swift */,
 				52CC283EC693E22C6E2271CF /* FindButton.png */,
 				08C95FBFA6D313133260559A /* HandHighlight.swift */,
+				E5A1C0DE00000000000000AB /* TextConsolidator.swift */,
+				E5A1C0DE00000000000000AA /* AnalyzeView.swift */,
+				E5A1C0DE00000000000000A9 /* TextReader.swift */,
 				E5A1C0DE00000000000000A8 /* VolumeHUDHider.swift */,
 				E5A1C0DE00000000000000A7 /* AgentSession.swift */,
 				E5A1C0DE00000000000000A6 /* TargetParser.swift */,
@@ -223,6 +232,9 @@
 				E5A1C0DE00000000000000B3 /* InteractionAnnouncer.swift in Sources */,
 				E5A1C0DE00000000000000B4 /* VoiceListener.swift in Sources */,
 				E5A1C0DE00000000000000B5 /* ListeningIndicator.swift in Sources */,
+				E5A1C0DE00000000000000BC /* TextConsolidator.swift in Sources */,
+				E5A1C0DE00000000000000BB /* AnalyzeView.swift in Sources */,
+				E5A1C0DE00000000000000BA /* TextReader.swift in Sources */,
 				E5A1C0DE00000000000000B9 /* VolumeHUDHider.swift in Sources */,
 				E5A1C0DE00000000000000B8 /* AgentSession.swift in Sources */,
 				E5A1C0DE00000000000000B6 /* TargetParser.swift in Sources */,
