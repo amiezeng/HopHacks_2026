@@ -127,43 +127,37 @@ struct BoundingBoxOverlay: View {
                     .position(x: center.x, y: center.y - 24)
             }
 
-            if let pillText {
-                Text(pillText)
-                    .font(.headline.monospacedDigit())
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(
-                        pillHighlighted ? AnyShapeStyle(Color.green.opacity(0.85)) : AnyShapeStyle(.ultraThinMaterial),
-                        in: Capsule()
-                    )
+            if let status {
+                StatusBlob(headline: status.headline, detail: status.detail, highlighted: statusHighlighted)
                     .frame(maxHeight: .infinity, alignment: .bottom)
-                    .padding(.bottom, 40)
+                    .padding(.bottom, 36)
             }
         }
         .frame(width: viewSize.width, height: viewSize.height)
     }
 
-    private var pillHighlighted: Bool {
+    private var statusHighlighted: Bool {
         approaching ? objectClose : objectFound
     }
 
-    private var pillText: String? {
-        if approaching { return approachText }
-        if objectFound { return "Found ✓" }
-        let (title, left, right) = pillDistances
-        guard left != nil || right != nil else { return nil }
-        return "\(title)  L \(format(left)) · R \(format(right))"
-    }
-
-    // Too close is checked first: the camera can't focus there, even while still debounced as close.
-    private var approachText: String {
-        if let cameraDistance, cameraDistance < ObjectDetector.tooCloseDistance {
-            return "Too close, move it back · \(format(cameraDistance))"
+    /// The blob's two lines: the distance, big, and what to do about it underneath. `nil` while there
+    /// is nothing measured to report, so the blob isn't on screen saying "—".
+    private var status: (headline: String, detail: String?)? {
+        if approaching {
+            let distance = format(cameraDistance)
+            // Too close is checked first: the camera can't focus there, even while still debounced
+            // as close.
+            if let cameraDistance, cameraDistance < ObjectDetector.tooCloseDistance {
+                return (distance, "Too close, move it back")
+            }
+            if objectClose { return (distance, "Close enough to read") }
+            let goal = String(format: "%.0f in", ObjectDetector.readDistance * 39.3701)
+            return (distance, "Bring it closer → \(goal)")
         }
-        if objectClose { return "Close enough to read ✓" }
-        let goal = String(format: "%.0f in", ObjectDetector.readDistance * 39.3701)
-        return "Bring it closer · \(format(cameraDistance)) → \(goal)"
+        if objectFound { return ("Found", nil) }
+        let (title, left, right) = pillDistances
+        guard let closest = [left, right].compactMap({ $0 }).min() else { return nil }
+        return (format(closest), "\(title)  L \(format(left)) · R \(format(right))")
     }
 
     // Hand -> tapped point if one is selected, else closest fingertip -> mask edge, else camera -> hand.

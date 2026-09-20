@@ -19,6 +19,11 @@ struct EdgeMeasurement {
     let insideMask: Bool
     // 2D fingertip -> contour distance (normalized), 0 when inside the mask. Used when LiDAR is missing.
     let screenGap: CGFloat
+    // Signed depth difference along the camera axis (meters): object minus fingertip, with the same
+    // reach correction as `distance`. Positive means the object is still beyond the fingertip, so the
+    // hand has to go forward; negative means the hand has overshot past it. `distance` is unsigned and
+    // can't tell those apart, which is what forward/back guidance needs. nil without LiDAR depth.
+    let depthGap: Float?
 }
 
 // Debounced "hand reached the object" state from a noisy distance stream. Measured distance never
@@ -183,6 +188,9 @@ class ObjectDetector: ObservableObject {
         "2nd_order_interacting_object_both"
     ]
 
+    /// Candidates for the hand/object model, in order; the first one bundled is used.
+    static let objectModelNames = ["YOLOv10n_EGOHOS", "YOLOv10n_EGOHO", "YOLOv10nEGOHO", "yolo11n", "yolo11n_EGOHO"]
+
     // YOLO is off; Vision hand pose drives the hand positions. Flip these to switch back.
     var yoloEnabled = false
     var handPoseEnabled = true
@@ -194,8 +202,7 @@ class ObjectDetector: ObservableObject {
 
     private func setupObjectDetection() {
         do {
-            let config = MLModelConfiguration()
-            let vnModel = try loadVNCoreMLModel(config: config)
+            let vnModel = try loadVNCoreMLModel()
 
             let req = VNCoreMLRequest(model: vnModel) { [weak self] request, error in
                 if let error = error {
@@ -221,17 +228,11 @@ class ObjectDetector: ObservableObject {
         }
     }
 
-    private func loadVNCoreMLModel(config: MLModelConfiguration) throws -> VNCoreMLModel {
-        let modelNames = ["YOLOv10n_EGOHOS", "YOLOv10n_EGOHO", "YOLOv10nEGOHO", "yolo11n", "yolo11n_EGOHO"]
-        let modelExtensions = ["mlpackage", "mlmodel", "mlmodelc"]
-
-        for name in modelNames {
-            for ext in modelExtensions {
-                if let modelURL = Bundle.main.url(forResource: name, withExtension: ext) {
-                    let model = try MLModel(contentsOf: modelURL, configuration: config)
-                    return try VNCoreMLModel(for: model)
-                }
-            }
+    // Loaded through ModelStore, which `Preloader` fills at launch, so this init doesn't read weights
+    // off disk while the screen it belongs to is being pushed.
+    private func loadVNCoreMLModel() throws -> VNCoreMLModel {
+        if let model = try ModelStore.model(names: Self.objectModelNames) {
+            return try VNCoreMLModel(for: model)
         }
 
         let ptFileExists = Bundle.main.url(forResource: "YOLOv10n_EGOHOS", withExtension: "pt") != nil
@@ -636,21 +637,31 @@ class ObjectDetector: ObservableObject {
         let depthPoint = finger.dip.map { CGPoint(x: (finger.tip.x + $0.x) / 2, y: (finger.tip.y + $0.y) / 2) } ?? finger.tip
 
         var distance: Float?
+        var depthGap: Float?
         if let tipDepth = depthValue(at: depthPoint, frame: frame, radius: 1) {
             // Object depth comes only from pixels inside the mask: on the contour itself, depth mixes the
             // object with the background behind it. Inside the mask a wide patch is used so the object
             // outweighs any finger pixels the mask includes.
             if insideMask {
                 if let objectDepth = depthValue(at: finger.tip, frame: frame, radius: 6, include: { mask.contains($0) }) {
-                    distance = max(0, objectDepth - tipDepth - finger.reach)
+                    depthGap = objectDepth - tipDepth - finger.reach
+                    distance = max(0, depthGap!)
                 }
             } else if let target = cameraSpacePoint(at: edge, frame: frame, radius: 3, include: { mask.contains($0) }) {
                 let hand = cameraSpacePoint(at: finger.tip, depth: tipDepth, frame: frame)
                 distance = max(0, simd_distance(hand, target) - finger.reach)
+                depthGap = target.z - hand.z - finger.reach
             }
         }
         let screenGap = insideMask ? 0 : hypot(finger.tip.x - edge.x, finger.tip.y - edge.y)
-        return EdgeMeasurement(fingertip: finger.tip, edge: edge, distance: distance, insideMask: insideMask, screenGap: screenGap)
+        return EdgeMeasurement(
+            fingertip: finger.tip,
+            edge: edge,
+            distance: distance,
+            insideMask: insideMask,
+            screenGap: screenGap,
+            depthGap: depthGap
+        )
     }
 
     private func handCenter(label: String) -> CGPoint? {

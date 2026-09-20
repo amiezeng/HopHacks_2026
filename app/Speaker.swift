@@ -44,16 +44,43 @@ final class Speaker: NSObject, AVAudioPlayerDelegate {
         }
     }
 
-    func waitUntilIdle() async {
-        while worker != nil, !Task.isCancelled {
+    /// True only while a clip is actually coming out of the speaker. `DistanceBeepController` checks it
+    /// before its own speech: the two use different engines (this one plays ElevenLabs clips, that one
+    /// synthesises on device), so neither can hear the other and they would otherwise talk at once.
+    ///
+    /// Deliberately not `worker != nil`: the worker is also set for the whole of a *network* fetch, and
+    /// gating the guidance voice on that meant a slow or unreachable ElevenLabs left the user in
+    /// silence with no idea where their hand was.
+    var isSpeaking: Bool { player?.isPlaying == true }
+
+    /// Waits for the queue to drain. The timeout matters: four screens gate their microphone on this
+    /// call, so without it one wedged fetch takes the whole app's voice control down with it.
+    func waitUntilIdle(timeout: TimeInterval = 8) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while worker != nil, !Task.isCancelled, Date() < deadline {
             try? await Task.sleep(for: .milliseconds(50))
         }
     }
 
+    // The one audio session the talking half of the app runs on; `AudioLevels` asks for this same one
+    // rather than its own, so nothing reconfigures the microphone under anything else's tap.
+    //
     // .defaultToSpeaker keeps playback on the loudspeaker; recording mode otherwise uses the earpiece.
+    // .measurement keeps iOS's own processing off the input — automatic gain control above all. The
+    // water in `WaterVisualizer` is drawn from raw levels, and AGC winds a silent room up to a voice's
+    // reading (and pumps it over a few seconds, which reads as syllables); it is also the mode Apple's
+    // own speech-recognition sample records in.
+    //
+    // Call this off the main thread: both calls are synchronous IPC to the media server and take long
+    // enough to drop frames. The category is only set when it isn't already what we want, because
+    // `DistanceBeepController` sets its own and every switch costs that again (and can restart a
+    // running engine under it).
     nonisolated static func configureAudioSession() throws {
+        let options: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetoothA2DP]
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .allowBluetoothA2DP])
+        if session.category != .playAndRecord || session.mode != .measurement || session.categoryOptions != options {
+            try session.setCategory(.playAndRecord, mode: .measurement, options: options)
+        }
         try session.setActive(true)
     }
 
@@ -74,13 +101,18 @@ final class Speaker: NSObject, AVAudioPlayerDelegate {
             .appendingPathComponent("\(hash).mp3")
     }
 
+    // Reading and writing the cache is file I/O, and this class is on the main actor: done here it
+    // stalls whatever is animating on the screen that started talking. Both go off the actor.
     private func loadAudio(for text: String) async throws -> Data {
         let file = cacheURL(for: text)
-        if let cached = try? Data(contentsOf: file) { return cached }
+        let cached = await Task.detached(priority: .userInitiated) { try? Data(contentsOf: file) }.value
+        if let cached { return cached }
 
         let audio = try await fetchAudio(for: text)
-        try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? audio.write(to: file)
+        Task.detached(priority: .utility) {
+            try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? audio.write(to: file)
+        }
         return audio
     }
 
@@ -107,14 +139,48 @@ final class Speaker: NSObject, AVAudioPlayerDelegate {
     }
 
     private func play(_ data: Data) async throws {
-        try Self.configureAudioSession()
-        let newPlayer = try AVAudioPlayer(data: data)
+        // Activating the audio session talks to the media server and decoding the clip parses it, and
+        // both block the thread they're on for long enough to drop frames. On the main actor — where
+        // this class lives — that landed in the middle of the screens' entrance animations, which is
+        // what made them stutter. Only handing the prepared player its cue comes back to the actor.
+        let prepared = try await Task.detached(priority: .userInitiated) {
+            try Self.configureAudioSession()
+            let player = try AVAudioPlayer(data: data)
+            player.prepareToPlay()
+            return Prepared(player: player)
+        }.value
+        // Re-checked after the hop off and back: `stop()` cancels this task, but a cancellation that
+        // lands while the clip is being decoded used to arrive too late to matter — `stop()` would
+        // stop the *old* player, and then this one would start anyway, playing the line the screen we
+        // just left was in the middle of saying.
+        guard !Task.isCancelled else { return }
+        let newPlayer = prepared.player
         newPlayer.delegate = self
         player = newPlayer
+
+        // `audioPlayerDidFinishPlaying` never arrives if playback is refused or interrupted — and a
+        // continuation that is never resumed wedges `worker` non-nil for good, which stops the queue,
+        // hangs every `waitUntilIdle`, and so silences the app until it is relaunched.
+        let watchdog = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(max(newPlayer.duration, 1) + 2))
+            guard !Task.isCancelled else { return }
+            print("Speaker: playback never reported finishing, moving on")
+            self?.finishPlayback()
+        }
         await withCheckedContinuation { continuation in
             playbackFinished = continuation
-            newPlayer.play()
+            if !newPlayer.play() {
+                print("Speaker: AVAudioPlayer refused to start")
+                finishPlayback()
+            }
         }
+        watchdog.cancel()
+    }
+
+    /// Carries a player built off the main actor back to it. `AVAudioPlayer` isn't `Sendable`; this one
+    /// is handed straight over and only ever used on the actor from here on.
+    private struct Prepared: @unchecked Sendable {
+        let player: AVAudioPlayer
     }
 
     private func finishPlayback() {

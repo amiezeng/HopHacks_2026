@@ -6,7 +6,7 @@ import SwiftUI
 /// bubbles rising inside. Calls `onFull` once the screen is covered.
 struct WaterPour: View {
     var color: Color
-    var duration: Double = 1.5
+    var duration: Double = 1.25
     var onFull: () -> Void = {}
 
     /// Where the stream lands and the level starts rising.
@@ -20,7 +20,9 @@ struct WaterPour: View {
     var body: some View {
         TimelineView(.animation) { timeline in
             let t = start.map { timeline.date.timeIntervalSince($0) } ?? 0
-            Canvas { context, size in
+            // Off the main thread: the main screen is mounting and its buttons start falling while this
+            // is still pouring, and they need the frames more than the water does.
+            Canvas(rendersAsynchronously: true) { context, size in
                 draw(&context, size: size, t: t)
             }
             .onChange(of: t >= duration) { _, full in
@@ -204,11 +206,22 @@ struct WaterPour: View {
 /// and tilting, touches the surface, bobs, and sends out a ripple ring. `delay` staggers several.
 /// Replays each time the view appears.
 struct LeafFall: ViewModifier {
+    /// Points per second a leaf drifts down at. Every leaf falls at this rate, so one that starts
+    /// higher above the screen lands later — rather than all of them taking the same time and the
+    /// short one crawling while the long one races.
+    static let speed: CGFloat = 950
+    /// Floor on the fall, so a view that rests near the top still drifts rather than snapping in.
+    static let shortestFall = 0.42
+
+    /// How long the fall from `height` takes, and when it touches down from the view appearing.
+    static func fall(height: CGFloat) -> Double { max(shortestFall, Double(height / speed)) }
+    static func landing(height: CGFloat, delay: Double = 0) -> Double { delay + fall(height: height) }
+
     var delay: Double = 0
-    /// How far above its resting place the view starts. It has to clear the top of the screen from
-    /// wherever the view sits, so this is sized for the lowest one (MainScreen's Analyze button,
-    /// which rests about two thirds of the way down) rather than for a screen height.
-    var height: CGFloat = 1000
+    /// How far above its resting place the view starts, in points. Size it so the view just clears the
+    /// top of the screen from where it rests (see `MainScreen`'s drops): too far and it spends the first
+    /// half of the fall out of sight, which reads as the animation starting late.
+    var height: CGFloat = 700
     var sway: CGFloat = 45
 
     struct Pose {
@@ -217,7 +230,13 @@ struct LeafFall: ViewModifier {
         var angle: Double = 0
         var scale: CGFloat = 1
         var ripple: CGFloat = 0
+        /// Fades in over the top of the fall, so a leaf that starts on screen (a taller phone than the
+        /// drop was sized for) drifts into view instead of popping.
+        var opacity: Double = 0
     }
+
+    /// Seconds of descent for this leaf.
+    private var descent: Double { Self.fall(height: height) }
 
     @State private var drops = 0
 
@@ -228,6 +247,7 @@ struct LeafFall: ViewModifier {
                     .scaleEffect(pose.scale)
                     .rotationEffect(.degrees(pose.angle))
                     .offset(x: pose.x, y: pose.y)
+                    .opacity(pose.opacity)
                     .background {
                         // Ripple spreading out from where it landed.
                         RoundedRectangle(cornerRadius: 40)
@@ -236,39 +256,45 @@ struct LeafFall: ViewModifier {
                             .opacity(pose.ripple > 0 ? 1 : 0)
                     }
             } keyframes: { _ in
-                // Falling: ~1.3 s, swinging like a pendulum while it drifts down.
+                // Falling: `descent` seconds, swinging like a pendulum while it drifts down. Every
+                // track's fall is a fraction of `descent`, so they stay in step whatever the height.
                 KeyframeTrack(\.y) {
                     LinearKeyframe(-height, duration: delay)
-                    CubicKeyframe(-height * 0.55, duration: 0.35)
-                    CubicKeyframe(-height * 0.2, duration: 0.45)
-                    CubicKeyframe(0, duration: 0.5)
+                    CubicKeyframe(-height * 0.55, duration: descent * 0.3)
+                    CubicKeyframe(-height * 0.2, duration: descent * 0.35)
+                    CubicKeyframe(0, duration: descent * 0.35)
                     // Bob on the water.
-                    CubicKeyframe(8, duration: 0.25)
-                    CubicKeyframe(-3, duration: 0.3)
-                    CubicKeyframe(0, duration: 0.4)
+                    CubicKeyframe(8, duration: 0.22)
+                    CubicKeyframe(-3, duration: 0.26)
+                    CubicKeyframe(0, duration: 0.34)
                 }
                 KeyframeTrack(\.x) {
                     LinearKeyframe(sway, duration: delay)
-                    CubicKeyframe(-sway, duration: 0.35)
-                    CubicKeyframe(sway * 0.6, duration: 0.45)
-                    CubicKeyframe(-sway * 0.2, duration: 0.4)
-                    SpringKeyframe(0, duration: 0.6, spring: .bouncy)
+                    CubicKeyframe(-sway, duration: descent * 0.3)
+                    CubicKeyframe(sway * 0.6, duration: descent * 0.35)
+                    CubicKeyframe(-sway * 0.2, duration: descent * 0.35)
+                    SpringKeyframe(0, duration: 0.55, spring: .bouncy)
                 }
                 KeyframeTrack(\.angle) {
                     LinearKeyframe(-18, duration: delay)
-                    CubicKeyframe(16, duration: 0.35)
-                    CubicKeyframe(-10, duration: 0.45)
-                    CubicKeyframe(4, duration: 0.4)
-                    SpringKeyframe(0, duration: 0.7, spring: .bouncy)
+                    CubicKeyframe(16, duration: descent * 0.3)
+                    CubicKeyframe(-10, duration: descent * 0.35)
+                    CubicKeyframe(4, duration: descent * 0.35)
+                    SpringKeyframe(0, duration: 0.6, spring: .bouncy)
                 }
                 KeyframeTrack(\.scale) {
-                    LinearKeyframe(1.08, duration: delay + 1.2)
-                    CubicKeyframe(0.94, duration: 0.15) // touch down
-                    SpringKeyframe(1, duration: 0.6, spring: .bouncy(extraBounce: 0.2))
+                    // Squashes over the last of the descent, so it bottoms out exactly on touch down.
+                    LinearKeyframe(1.08, duration: delay + descent * 0.86)
+                    CubicKeyframe(0.94, duration: descent * 0.14)
+                    SpringKeyframe(1, duration: 0.55, spring: .bouncy(extraBounce: 0.2))
                 }
                 KeyframeTrack(\.ripple) {
-                    LinearKeyframe(0, duration: delay + 1.25)
-                    LinearKeyframe(1, duration: 0.8)
+                    LinearKeyframe(0, duration: delay + descent * 0.97)
+                    LinearKeyframe(1, duration: 0.7)
+                }
+                KeyframeTrack(\.opacity) {
+                    LinearKeyframe(0, duration: delay)
+                    LinearKeyframe(1, duration: min(0.2, descent * 0.3))
                 }
             }
             .onAppear {
@@ -284,5 +310,5 @@ struct LeafFall: ViewModifier {
             }
     }
 
-    private var start: Pose { Pose(x: sway, y: -height, angle: -18, scale: 1.08) }
+    private var start: Pose { Pose(x: sway, y: -height, angle: -18, scale: 1.08, opacity: 0) }
 }

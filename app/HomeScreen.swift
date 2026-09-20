@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct HomeScreen: View {
-    private static let titleLetters = HomeArt.title.pieces
+    /// Not private, and off the main actor, so `Preloader` can build the split before the screen is shown.
+    nonisolated static let titleLetters = HomeArt.title.pieces
     /// Sits under "PROBE", a third of its height, in artboard points.
     private static let subtitleBounds = CGRect(
         x: HomeArt.title.bounds.minX,
@@ -16,14 +17,34 @@ struct HomeScreen: View {
         width: 340,
         height: 150
     )
+    /// Where "PROBE" is centered (in artboard points) while `LoadingScreen` is up. It rises from there.
+    static let loadingTitleCenter: CGFloat = 720
+    /// How far below its place here that is, as a fraction of the artboard's height (`artboardShift`).
+    static let loadingTitleDrop = (loadingTitleCenter - HomeArt.title.bounds.midY) / HomeArt.artboard.height
+    /// The title glides up; the monster follows a beat later with a little give, and comes up from
+    /// below the whole artboard (a shift of `1`), further than any part of him is on screen.
+    private static let titleRise = Animation.smooth(duration: 0.9)
+    private static let monsterRise = Animation.spring(duration: 1.0, bounce: 0.2).delay(0.15)
+    /// How long after the rise starts the title is close enough to its place for the letters to start
+    /// hopping and the subtitle and hint to come in.
+    private static let landingDelay = Duration.milliseconds(550)
+
+    /// False while the loading screen is still up over this one (so it can lay out and draw unseen).
+    /// Turning it true plays the entrance: the title rises from where `LoadingScreen` drew it and the
+    /// monster slides in from below. It isn't replayed when coming back from the main screen.
+    var introStarted = true
+
     @State private var hasIntroduced = false
     @StateObject private var listener = VoiceListener()
 
+    /// The entrance has started: title and monster are on their way to their places.
+    @State private var risen = false
+    /// ...and the title has all but arrived: the letters can hop, the rest can fade in.
+    @State private var landed = false
+
     @State private var showMainScreen = false
     @State private var pouring = false
-    /// Set once the main screen has taken over underneath, to fade the water off it.
-    @State private var waterCleared = false
-    @StateObject private var eyes = EyeMotion()
+    @State private var eyes = EyeMotion()
 
     /// The main screen *replaces* this one as the stack's root rather than being pushed onto it.
     /// A push animates the new screen in from the side, and `disablesAnimations` doesn't stop it
@@ -38,22 +59,27 @@ struct HomeScreen: View {
                     home
                 }
                 // Main screen's blue pours in over the home screen, then the main screen takes its
-                // place underneath and the water fades off it.
+                // place underneath and the water comes straight off it.
                 if pouring {
                     WaterPour(color: MainArt.background.color) {
                         swap(toMain: true)
-                        // By now the water is a flat sheet of the main screen's own color (its bubbles
-                        // fade out as it tops up), so the fade only uncovers the buttons falling in.
-                        withAnimation(.easeOut(duration: 0.4).delay(0.2)) { waterCleared = true }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
-                            pouring = false
-                            waterCleared = false
-                        }
+                        // By the time it's full the water is a flat sheet of the main screen's own color
+                        // (the bubbles and foam fade out as it tops up), so it can be cut rather than
+                        // faded: a fade kept the buttons hidden through the first half of their fall,
+                        // which is what made them look like they started late. The couple of frames
+                        // held here are for the main screen's first frame, and are invisible.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { pouring = false }
                     }
-                    .opacity(waterCleared ? 0 : 1)
                 }
             }
             .ignoresSafeArea()
+            .task(id: introStarted) {
+                guard introStarted, !risen else { return }
+                risen = true
+                try? await Task.sleep(for: Self.landingDelay)
+                guard !Task.isCancelled else { return }
+                landed = true
+            }
         }
     }
 
@@ -67,33 +93,34 @@ struct HomeScreen: View {
     private var home: some View {
             // Layers of design/ProbeHome.ai; the background layer is the full-screen color.
             Artboard(rect: HomeArt.artboard) {
-                HomeArt.monster
-                    .lookOffset(eyes.look, amount: 0.03, tilt: 3)
-                HomeArt.eyeWhite
-                    .blink(eyes.blinks)
-                    .lookOffset(eyes.look, amount: 0.15, tilt: 8)
-                HomeArt.iris
-                    .lookOffset(eyes.look, amount: 0.9)
-                    .blink(eyes.blinks)
-                HomeArt.pupil
-                    .lookOffset(eyes.look, amount: 1.35)
-                    .blink(eyes.blinks)
-                // "PROBE", one letter at a time so they hop in a wave.
-                ForEach(Array(Self.titleLetters.enumerated()), id: \.offset) { i, letter in
-                    letter
-                        .modifier(Bubbly(delay: Double(i) * 0.1))
-                        .artFrame(letter.bounds)
+                // Nested over the whole artboard (which places its layers exactly where this one would)
+                // so that the eyes moving redraws only the monster — not the title's letters and the
+                // subtitle, whose text has to be measured and fitted again on every pass.
+                Monster(eyes: eyes)
+                    .artboardShift(risen ? 0 : 1, animation: Self.monsterRise)
+                    .artFrame(HomeArt.artboard)
+                // "PROBE", one letter at a time so they hop in a wave once they've risen into place.
+                // Grouped over the whole artboard so the group can be shifted as one.
+                Artboard(rect: HomeArt.artboard) {
+                    ForEach(Array(Self.titleLetters.enumerated()), id: \.offset) { i, letter in
+                        letter
+                            .modifier(Bubbly(delay: Double(i) * 0.1, isActive: landed))
+                            .artFrame(letter.bounds)
+                    }
                 }
-                // Hops in after the last letter, then pulses with them.
-                Text("Reach with confidence")
-                    .font(.system(size: 500, weight: .bold, design: .rounded))
-                    .minimumScaleFactor(0.001)
-                    .lineLimit(1)
-                    .foregroundStyle(HomeArt.title.color)
-                    .modifier(Bubbly(delay: Double(Self.titleLetters.count) * 0.1, hop: 8, pulse: 0.03))
+                .artboardShift(risen ? 0 : Self.loadingTitleDrop, animation: Self.titleRise)
+                .artFrame(HomeArt.artboard)
+                // Fades in under the title once it has landed, hops in after the last letter, then
+                // pulses with them.
+                SubtitleLetters(text: "Reach with confidence", color: HomeArt.title.color,
+                                delay: Double(Self.titleLetters.count) * 0.1, isActive: landed)
+                    .opacity(landed ? 1 : 0)
+                    .animation(.easeOut(duration: 0.3).delay(0.4), value: landed)
                     .artFrame(Self.subtitleBounds)
-                ScrollHint(color: HomeArt.background.color)
-                    .artFrame(Self.hintBounds)
+                if landed {
+                    ScrollHint(color: HomeArt.background.color)
+                        .artFrame(Self.hintBounds)
+                }
             }
             .background(HomeArt.background.color)
             .clipped()
@@ -114,7 +141,8 @@ struct HomeScreen: View {
                 }
             }
             .animation(.easeInOut, value: listener.isListening)
-            .task {
+            .task(id: introStarted) {
+                guard introStarted else { return }
                 if !hasIntroduced {
                     try? await Task.sleep(for: .seconds(0.25))
                     guard !Task.isCancelled else { return }
@@ -129,6 +157,56 @@ struct HomeScreen: View {
             }
             .onAppear { eyes.start() }
             .onDisappear { eyes.stop(); listener.stop() }
+    }
+}
+
+/// The subtitle, one letter at a time like the title, scaled as a whole to fit its frame.
+private struct SubtitleLetters: View {
+    var text: String
+    var color: Color
+    var delay: Double
+    var isActive = true
+
+    /// The row's size at the reference font size, measured once laid out.
+    @State private var natural = CGSize(width: 1, height: 1)
+
+    var body: some View {
+        GeometryReader { geo in
+            let scale = min(geo.size.width / natural.width, geo.size.height / natural.height)
+            HStack(spacing: 0) {
+                ForEach(Array(text.enumerated()), id: \.offset) { i, ch in
+                    Text(String(ch))
+                        .font(.system(size: 500, weight: .bold, design: .rounded))
+                        .foregroundStyle(color)
+                        .modifier(Bubbly(delay: delay + Double(i) * 0.04, hop: 8, pulse: 0.03, isActive: isActive))
+                }
+            }
+            .fixedSize()
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { natural = $0 }
+            .scaleEffect(scale)
+            .frame(width: geo.size.width, height: geo.size.height)
+        }
+    }
+}
+
+/// The monster and his eye, which follow the phone (`EyeMotion`).
+private struct Monster: View {
+    var eyes: EyeMotion
+
+    var body: some View {
+        Artboard(rect: HomeArt.artboard) {
+            HomeArt.monster
+                .lookOffset(eyes.look, amount: 0.03, tilt: 3)
+            HomeArt.eyeWhite
+                .blink(eyes.blinks)
+                .lookOffset(eyes.look, amount: 0.15, tilt: 8)
+            HomeArt.iris
+                .lookOffset(eyes.look, amount: 0.9)
+                .blink(eyes.blinks)
+            HomeArt.pupil
+                .lookOffset(eyes.look, amount: 1.35)
+                .blink(eyes.blinks)
+        }
     }
 }
 
@@ -187,13 +265,15 @@ private struct Chevron: Shape {
 
 /// Bubbles in with one jelly hop (crouch, jump while stretched, squash on landing and wobble back),
 /// then keeps gently growing and shrinking by `pulse`. `delay` staggers it so a row of them goes in a wave.
-/// Replays each time the view appears.
+/// Replays each time the view appears (once `isActive`).
 private struct Bubbly: ViewModifier {
     var delay: Double
     var hop: CGFloat = 16
     var pulse: CGFloat = 0.05
     /// Seconds to grow, then again to shrink.
     var pulseDuration = 1.0
+    /// Held still until this is true (the view can be on screen, at rest, well before it should hop).
+    var isActive = true
 
     struct Pose {
         var y: CGFloat = 0
@@ -230,7 +310,8 @@ private struct Bubbly: ViewModifier {
                     SpringKeyframe(1, duration: 0.9, spring: .bouncy(duration: 0.4, extraBounce: 0.2))
                 }
             }
-            .onAppear {
+            .onChange(of: isActive, initial: true) { _, active in
+                guard active else { return }
                 hops += 1
                 // Starts once the landing wobble has settled.
                 withAnimation(.easeInOut(duration: pulseDuration).repeatForever().delay(start + 1.2)) {

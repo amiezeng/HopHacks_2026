@@ -10,12 +10,13 @@ enum Mood: String {
 /// Drives the eyes from device motion: pupils follow the phone's tilt (gravity), the eyes blink
 /// on a quick jolt of the phone or at random every few seconds, and `mood` follows how it's moved.
 @MainActor
-final class EyeMotion: ObservableObject {
+@Observable
+final class EyeMotion {
     /// Where the pupils look, -1…1 on each axis (+x right, +y down).
-    @Published private(set) var look: CGPoint = .zero
+    private(set) var look: CGPoint = .zero
     /// Bumped on every blink; use as an animation trigger.
-    @Published private(set) var blinks = 0
-    @Published private(set) var mood = Mood.neutral
+    private(set) var blinks = 0
+    private(set) var mood = Mood.neutral
 
     private var surprisedUntil = Date.distantPast
     private var dizzyUntil = Date.distantPast
@@ -23,6 +24,11 @@ final class EyeMotion: ObservableObject {
     private var flatSince: Date?
 
     private let manager = CMMotionManager()
+    /// Sampled at 60 Hz. At 30 the pupils crossed the eye in visible steps, and on the Analyze button
+    /// the magnifier drifts with the same value across most of the card, where half-rate is obvious.
+    /// What a publish re-evaluates is kept small instead: only the views that read `look` (`Monster`,
+    /// `FindFace`, `AnalyzeFace`), never a screen's own body.
+    private static let rate = 1.0 / 60
     private var blinkTask: Task<Void, Never>?
     private var lastBlink = Date.distantPast
 
@@ -32,7 +38,7 @@ final class EyeMotion: ObservableObject {
             return
         }
         guard !manager.isDeviceMotionActive else { return }
-        manager.deviceMotionUpdateInterval = 1 / 60
+        manager.deviceMotionUpdateInterval = Self.rate
         manager.startDeviceMotionUpdates(to: .main) { [weak self] motion, _ in
             guard let self, let motion else { return }
             // Tilting the phone ~15° moves the eyes all the way over.
@@ -44,9 +50,15 @@ final class EyeMotion: ObservableObject {
                 let t = Date().timeIntervalSinceReferenceDate * 9
                 target = CGPoint(x: cos(t) * 0.6, y: sin(t) * 0.6)
             }
-            // Low-pass so the eyes glide instead of jittering.
-            look = CGPoint(x: look.x + (target.x - look.x) * 0.3,
-                           y: look.y + (target.y - look.y) * 0.3)
+            // Low-pass so the eyes glide instead of jittering. Paired with `rate`: halving the interval
+            // takes the coefficient that settles in the same time to 1 - 0.5^0.5.
+            let k = 0.293
+            let next = CGPoint(x: look.x + (target.x - look.x) * k,
+                               y: look.y + (target.y - look.y) * k)
+            // Publishing redraws every layer that follows the eyes, so a held-still phone — which
+            // converges on a value and then republishes it every frame — stops here instead.
+            // Halved with `k`, so a smaller step per tick doesn't stop the look short of its target.
+            if abs(next.x - look.x) > 0.001 || abs(next.y - look.y) > 0.001 { look = next }
             // A quick flick or shake makes him blink.
             let r = motion.rotationRate
             if (r.x * r.x + r.y * r.y + r.z * r.z).squareRoot() > 3, mood != .dizzy { blink() }
@@ -77,7 +89,7 @@ final class EyeMotion: ObservableObject {
 
         // Only a real twirl of the phone in its own plane counts, not everyday handling, and it has
         // to keep going: dizzy overrides the tilt, so a false one looks like the eyes spinning at random.
-        spin = abs(r.z) > 4 ? spin + 1 / 60 : max(0, spin - 3 / 60)
+        spin = abs(r.z) > 4 ? spin + Self.rate : max(0, spin - 3 * Self.rate)
         if spin > 0.7 { dizzyUntil = now.addingTimeInterval(1.5) }
         if (a.x * a.x + a.y * a.y + a.z * a.z).squareRoot() > 0.35 { surprisedUntil = now.addingTimeInterval(1.2) }
         if g.z < -0.7 { flatSince = flatSince ?? now } else { flatSince = nil }
