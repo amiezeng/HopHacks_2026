@@ -11,8 +11,17 @@ final class TextReader: ObservableObject {
     @Published private(set) var lines: [String] = []
     @Published private(set) var uprightImageSize = CGSize(width: 1440, height: 1920)
 
-    private let scanInterval: TimeInterval = 0.5
+    private let scanInterval: TimeInterval
     private let minConfidence: Float = 0.3
+
+    /// `TextConsolidator` reports a line once it has seen it in three of the last eight scans, so how
+    /// often this runs is what sets how long someone has to hold an object still before anything is
+    /// read — three scans at 2 Hz is a second and a half before the first word appears. Analyze runs it
+    /// at 4 Hz for that reason; Find leaves it at 2, because there the OCR shares the frame with the
+    /// segmenter and the hand pose.
+    init(scanInterval: TimeInterval = 0.5) {
+        self.scanInterval = scanInterval
+    }
 
     private let queue = DispatchQueue(label: "com.hophacks.textreader", qos: .userInitiated)
     // Touched only on the main thread (ARSession delivers frames there).

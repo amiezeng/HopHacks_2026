@@ -4,11 +4,14 @@ struct AnalyzeView: View {
     var onBack: () -> Void = {}
     @StateObject private var listener = VoiceListener()
     @StateObject private var arController = ARSessionController()
-    @StateObject private var reader = TextReader()
+    // 4 Hz rather than the default 2: the countdown can't start until the consolidator has seen a line
+    // three times, and at 2 Hz that alone was a second and a half of holding still before anything moved.
+    @StateObject private var reader = TextReader(scanInterval: 0.25)
     @StateObject private var agent = AgentSession()
     @State private var summaryStarted = false
+    @State private var listening = false
     @State private var rescanning = false
-    @State private var currentHold: TimeInterval = 5
+    @State private var currentHold: TimeInterval = 2
     @State private var holdStartedAt: Date?
     @State private var secondsLeft = 0
     @State private var ringProgress: CGFloat = 0
@@ -16,17 +19,20 @@ struct AnalyzeView: View {
 
     private let backKeywords = ["go back", "back", "return", "previous", "exit", "leave", "quit", "cancel"]
     // Once text is found the user holds still for this long, then the agent starts with whatever was read.
-    private let holdDuration: TimeInterval = 5
+    // The countdown is evidence, not ceremony: at 4 Hz two seconds is eight more scans on top of the three
+    // that found the text, which is the consolidator's whole window. Five seconds bought a fuller read of
+    // the small print at the cost of holding a can out at arm's length for the better part of seven.
+    private let holdDuration: TimeInterval = 2
     // The countdown restarts if the text has been out of view for this long.
     private let textLostGrace: TimeInterval = 1
     // Hints when nothing readable is in view.
-    private let firstHintAfter: TimeInterval = 12
-    private let laterHintEvery: TimeInterval = 15
+    private let firstHintAfter: TimeInterval = 8
+    private let laterHintEvery: TimeInterval = 12
     private let maxHints = 2
     // A rescan is quicker than the first scan, because the agent is waiting for the result and gives up on a
     // slow tool. It reports what it has after the timeout even if it found nothing.
-    private let rescanHold: TimeInterval = 2
-    private let rescanTimeout: TimeInterval = 12
+    private let rescanHold: TimeInterval = 1.5
+    private let rescanTimeout: TimeInterval = 8
 
     var body: some View {
         GeometryReader { geo in
@@ -55,18 +61,19 @@ struct AnalyzeView: View {
             agent.onRescan = { await performRescan() }
         }
         .task {
+            // Whatever pushed this screen is still talking ("Analyze object selected").
             await Speaker.shared.waitUntilIdle()
             guard !Task.isCancelled else { return }
+            // The read runs *underneath* this line rather than after it. The camera is already up, and
+            // anyone who is going to hold something out is holding it out while the line plays — waiting
+            // it out threw those scans away and started the countdown three seconds later than it had to.
             Speaker.shared.speak("Hold the item in front of the camera so I can read it.")
-            await Speaker.shared.waitUntilIdle()
-            guard !Task.isCancelled else { return }
-            await listener.start(commands: ["back": backKeywords]) { _ in onBack() }
             if let lines = await scanForText(hold: holdDuration, hints: true, timeout: nil) {
                 beginSummary(with: lines)
             }
         }
         .onDisappear {
-            listener.stop()
+            stopListening()
             agent.stop()
         }
     }
@@ -95,9 +102,19 @@ struct AnalyzeView: View {
         var hintsGiven = 0
 
         while !Task.isCancelled {
+            // The microphone opens as soon as nothing is coming out of the speaker, and never before:
+            // the opening line and the hints below both name a `backKeywords` phrase, and the listener
+            // hears the speaker. Not during a rescan — by then the agent owns the microphone.
+            if !listening, !summaryStarted, !Speaker.shared.isBusy { await startListening() }
+
             let now = Date()
             if !reader.lines.isEmpty {
                 lastTextSeen = now
+                emptySince = now
+            } else if Speaker.shared.isBusy {
+                // Time spent listening to Probe isn't time spent failing to get a read. Without this the
+                // opening line — which the scan now runs underneath — counts toward the first hint, and a
+                // hint counts toward the one after it.
                 emptySince = now
             }
 
@@ -116,7 +133,7 @@ struct AnalyzeView: View {
                 if hintsGiven < maxHints, now.timeIntervalSince(emptySince) >= wait {
                     hintsGiven += 1
                     emptySince = now
-                    await speakHint("I can't read any text yet. Try holding the label closer, or say go back.")
+                    speakHint("I can't read any text yet. Try holding the label closer, or say go back.")
                 }
             }
 
@@ -152,13 +169,25 @@ struct AnalyzeView: View {
         withAnimation(.easeOut(duration: 0.2)) { ringProgress = 0 }
     }
 
-    // The hint mentions "go back", so the microphone must be off while it plays or the listener would hear it.
-    private func speakHint(_ text: String) async {
-        listener.stop()
+    // The hint mentions "go back", so the microphone goes off while it plays or the listener would hear
+    // it. The scan loop opens it again once the queue is empty.
+    private func speakHint(_ text: String) {
+        stopListening()
         Speaker.shared.speak(text)
-        await Speaker.shared.waitUntilIdle()
-        guard !Task.isCancelled else { return }
+    }
+
+    private func startListening() async {
+        guard !listening else { return }
+        listening = true
         await listener.start(commands: ["back": backKeywords]) { _ in onBack() }
+        // The screen can go away while the session is being set up, and `onDisappear` has then already
+        // stopped a listener that wasn't running yet.
+        if Task.isCancelled { stopListening() }
+    }
+
+    private func stopListening() {
+        listening = false
+        listener.stop()
     }
 
     // The agent takes over the microphone, so our own listener stops first. Connecting takes a moment anyway, so
@@ -167,7 +196,7 @@ struct AnalyzeView: View {
         summaryStarted = true
         holdStartedAt = nil
         withAnimation(.easeOut(duration: 0.3)) { ringProgress = 0 }
-        listener.stop()
+        stopListening()
         Speaker.shared.speak("Text detected.")
         agent.start(initialMessage: Self.summaryRequest(for: lines))
     }

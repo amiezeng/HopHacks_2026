@@ -1,6 +1,9 @@
 import Combine
 import Foundation
 import ElevenLabs
+// The agent's audio runs through LiveKit, and this is the only place the app reaches into it —
+// see `prepareAudio`, which stops it from taking the audio session off everything else.
+import LiveKit
 
 @MainActor
 final class AgentSession: ObservableObject {
@@ -22,7 +25,19 @@ final class AgentSession: ObservableObject {
     /// Called when the agent asks for a rescan (the "rescan" tool). Returns the newly scanned lines.
     var onRescan: (() async -> [String])?
 
-    private let endKeywords = [
+    /// Called when the conversation ends on its own: it never connected, or the server dropped it. Not
+    /// called by `stop()` — the screen asked for that one and already knows. A screen whose audio depends
+    /// on the agent needs this, or a refused connection just leaves it silent with nothing to react to.
+    var onEnded: (() -> Void)?
+
+    /// Every phrase the user says, once it has been checked against the keywords above. This is the
+    /// agent's transcription standing in for the one `VoiceListener` used to produce — `ContentView`
+    /// reads the object to find out of it.
+    var onTranscript: ((String) -> Void)?
+
+    /// Saying one of these ends the screen. Overridable: while the user is naming an object, a bare
+    /// "back" or "bye" is as likely to be part of the name as a command, so `ContentView` narrows it.
+    var endKeywords = [
         "go back", "end conversation", "end the conversation", "end call", "end the call",
         "take me back", "goodbye", "bye", "exit", "quit", "i'm done", "i am done", "we're done",
         "stop the conversation", "stop conversation"
@@ -56,6 +71,16 @@ final class AgentSession: ObservableObject {
     private var handledToolCalls = Set<String>()
     private var holdingForTool = false
     private var rescanTask: Task<[String], Never>?
+    private var isStopping = false
+    private var personaPrompt: String?
+    private var personaFirstMessage: String?
+    private var pendingInitialMessage: String?
+    private var retriedWithoutOverrides = false
+    /// Whether the connection that is up was made with overrides. A refused override presents as a
+    /// connection that is dropped before the agent says anything, and only one made with overrides is
+    /// worth retrying without them.
+    private var usedOverrides = false
+    private var hasPersona: Bool { personaPrompt != nil || personaFirstMessage != nil }
     private var keywordFollowUp: Task<Void, Never>?
     private var lastRescan: (lines: [String], finishedAt: Date, delivered: Bool)?
 
@@ -86,15 +111,39 @@ final class AgentSession: ObservableObject {
     }
 
     /// `initialMessage` is sent to the agent as if the user had said it, once the agent's own greeting is done.
-    func start(initialMessage: String? = nil) {
+    ///
+    /// `prompt`/`firstMessage` re-skin the one agent for the screen that is asking: the same agent ID backs
+    /// both Find and Analyze, so Find hands over its own persona rather than needing a second agent. The
+    /// voice is overridden either way, persona or not: it is the same voice `Speaker` has been talking in
+    /// for the whole screen up to this point, and the agent's own dashboard voice is a different person
+    /// answering the question Probe just asked.
+    ///
+    /// The agent has to allow that — `prompt.prompt`, `first_message` and the TTS voice, under Security on
+    /// the ElevenLabs dashboard. An override the agent hasn't allowlisted is refused rather than ignored
+    /// ("Override is not allowed for this AI agent"), and it takes the whole conversation down with it, so
+    /// the connection is retried once as the agent is configured. The wrong persona is worth more than no
+    /// agent: the screens fall back to on-device speech when this gives up, and that is the worse outcome.
+    func start(initialMessage: String? = nil, prompt: String? = nil, firstMessage: String? = nil) {
         guard !isRunning else { return }
-        rawState = .listening
-        heardAgent = false
         initialMessagePending = initialMessage != nil
         holdingForTool = false
         rescanTask = nil
         lastRescan = nil
         handledToolCalls.removeAll()
+        isStopping = false
+        personaPrompt = prompt
+        personaFirstMessage = firstMessage
+        pendingInitialMessage = initialMessage
+        retriedWithoutOverrides = false
+        usedOverrides = false
+        resetForConnection()
+        beginConnecting(withOverrides: true)
+    }
+
+    /// Per-connection state, so a retry starts as clean as a first attempt.
+    private func resetForConnection() {
+        rawState = .listening
+        heardAgent = false
         awaitingReplyUntil = .distantPast
         voiceHeard = false
         speakingUntil = .distantPast
@@ -102,58 +151,131 @@ final class AgentSession: ObservableObject {
         desiredMuted = true
         appliedMuted = nil
         isApplyingMute = false
+    }
+
+    private func beginConnecting(withOverrides: Bool) {
         status = .connecting
         startTask = Task { [self] in
             defer { startTask = nil }
-            do {
-                try Speaker.configureAudioSession()
-                var config = ConversationConfig(
-                    onError: { print("Agent error: \($0)") },
-                    onAgentResponse: { [weak self] text, _ in
-                        print("Agent: \(text)")
-                        Task { @MainActor in self?.agentSaid(text) }
-                    },
-                    onUserTranscript: { [weak self] text, _ in
-                        print("You said: \(text)")
-                        Task { @MainActor in self?.handleUserTranscript(text) }
-                    },
-                    onVadScore: { [weak self] score in
-                        Task { @MainActor in self?.voiceScoreChanged(score) }
-                    }
-                )
-                // Without this the SDK waits a full second after the agent stops before it reports "listening".
-                config.agentStateConfiguration = AgentStateConfiguration(speakingToListeningDelay: 0.2)
-                let started = try await ElevenLabs.startConversation(
-                    agentId: Secrets.elevenLabsAgentID,
-                    config: config,
-                    onDisconnect: { [weak self] reason in
-                        Task { @MainActor in self?.handleDisconnect(reason) }
-                    }
-                )
-                // stop() cancels a connection that was still being set up
-                guard !Task.isCancelled else {
-                    await started.endConversation()
+            var useOverrides = withOverrides
+            while true {
+                do {
+                    // Off the main actor: both halves of this are synchronous IPC to the media server.
+                    try await Task.detached(priority: .userInitiated) { try Self.prepareAudio() }.value
+                    try await connect(withOverrides: useOverrides)
                     return
+                } catch {
+                    guard useOverrides, !Task.isCancelled else {
+                        print("Agent start failed: \(error)")
+                        status = .idle
+                        onEnded?()
+                        return
+                    }
+                    print("Agent refused the overrides (\(error)) — retrying as it is configured")
+                    retriedWithoutOverrides = true
+                    useOverrides = false
+                    resetForConnection()
                 }
-                conversation = started
-                stateSubscription = started.$agentState.sink { [weak self] state in
-                    self?.agentStateChanged(state)
-                }
-                toolSubscription = started.$pendingToolCalls.sink { [weak self] calls in
-                    self?.handleToolCalls(calls, on: started)
-                }
-                micPolicyTask = Task { await runMicPolicy(for: started) }
-                if let initialMessage {
-                    messageTask = Task { await sendAfterGreeting(initialMessage, on: started) }
-                }
-            } catch {
-                print("Agent start failed: \(error)")
-                status = .idle
             }
         }
     }
 
+    /// Puts the agent on the app's own audio session instead of letting LiveKit take the hardware.
+    ///
+    /// Left to itself, LiveKit configures the session as a *call*: `.playAndRecord` in `.videoChat` mode
+    /// driven by Apple's Voice Processing I/O. That changes what comes out of the phone halfway through a
+    /// screen — iOS swaps its media gain for the quieter call-tuned one, and a screen recording leaves
+    /// call audio out altogether. On Analyze that was the seam: everything `Speaker` said before the label
+    /// was read was on the recording, and everything the agent said after it was missing.
+    ///
+    /// So the two halves are made one. `isAutomaticConfigurationEnabled = false` leaves
+    /// `Speaker.configureAudioSession` as the only thing in the app that ever sets a category — the same
+    /// session the tone, the microphone and every spoken line already share — and LiveKit no longer
+    /// deactivates it on its way out, which used to cut whatever was queued to say next. Disallowing the
+    /// platform voice-processing path is the other half: instantiating VPIO makes iOS rewrite the mode to
+    /// `.voiceChat` underneath us however the session was configured, so the call gain would come back on
+    /// its own. WebRTC's software echo cancellation stands in, and the microphone is muted the whole time
+    /// the agent is speaking anyway (see `runMicPolicy`), so there is little echo left for it to cancel.
+    ///
+    /// Done once, because it is global to the SDK and outlives any one conversation.
+    nonisolated static func prepareAudio() throws {
+        _ = handedLiveKitOurAudioSession
+        try Speaker.configureAudioSession()
+    }
+
+    /// A `static let` because its initialiser is the work, and Swift runs that exactly once however many
+    /// conversations the app has.
+    private static let handedLiveKitOurAudioSession: Bool = {
+        AudioManager.shared.audioSession.isAutomaticConfigurationEnabled = false
+        do {
+            try AudioManager.shared.setPlatformVoiceProcessingAllowed(false)
+        } catch {
+            // Not fatal: the agent still connects, it just sounds like a phone call and the screen
+            // recording loses it.
+            print("Agent: couldn't turn off the platform voice-processing path: \(error)")
+        }
+        return true
+    }()
+
+    private func connect(withOverrides: Bool) async throws {
+        var config = ConversationConfig(
+            onError: { print("Agent error: \($0)") },
+            onAgentResponse: { [weak self] text, _ in
+                print("Agent: \(text)")
+                Task { @MainActor in self?.agentSaid(text) }
+            },
+            onUserTranscript: { [weak self] text, _ in
+                print("You said: \(text)")
+                Task { @MainActor in self?.handleUserTranscript(text) }
+            },
+            onVadScore: { [weak self] score in
+                Task { @MainActor in self?.voiceScoreChanged(score) }
+            }
+        )
+        // Without this the SDK waits a full second after the agent stops before it reports "listening".
+        config.agentStateConfiguration = AgentStateConfiguration(speakingToListeningDelay: 0.2)
+        usedOverrides = withOverrides
+        if withOverrides {
+            // Only for a caller that is re-skinning the agent. A screen that takes the agent as
+            // configured (Analyze) still gets the voice override below, but not this.
+            if hasPersona {
+                config.agentOverrides = AgentOverrides(prompt: personaPrompt, firstMessage: personaFirstMessage)
+            }
+            // The voice `Speaker` has been using, always: the agent picks up mid-conversation from
+            // whatever the screen last said, and a change of voice there reads as a second person.
+            config.ttsOverrides = TTSOverrides(
+                voiceId: Speaker.voiceID,
+                stability: Speaker.stability,
+                speed: Speaker.speed
+            )
+        }
+        let started = try await ElevenLabs.startConversation(
+            agentId: Secrets.elevenLabsAgentID,
+            config: config,
+            onDisconnect: { [weak self] reason in
+                Task { @MainActor in self?.handleDisconnect(reason) }
+            }
+        )
+        // stop() cancels a connection that was still being set up
+        guard !Task.isCancelled else {
+            await started.endConversation()
+            return
+        }
+        conversation = started
+        stateSubscription = started.$agentState.sink { [weak self] state in
+            self?.agentStateChanged(state)
+        }
+        toolSubscription = started.$pendingToolCalls.sink { [weak self] calls in
+            self?.handleToolCalls(calls, on: started)
+        }
+        micPolicyTask = Task { await runMicPolicy(for: started) }
+        if let initialMessage = pendingInitialMessage {
+            messageTask = Task { await sendAfterGreeting(initialMessage, on: started) }
+        }
+    }
+
     func stop() {
+        isStopping = true
         startTask?.cancel()
         startTask = nil
         cancelBackgroundWork()
@@ -270,9 +392,13 @@ final class AgentSession: ObservableObject {
         guard isRunning else { return }
         if KeywordMatcher.matches(text, in: endKeywords) {
             onEndRequested?()
-        } else if KeywordMatcher.matches(text, in: rescanKeywords) {
-            startVoiceRescan()
+            return
         }
+        if KeywordMatcher.matches(text, in: rescanKeywords) {
+            startVoiceRescan()
+            return
+        }
+        onTranscript?(text)
     }
 
     private func agentStateChanged(_ state: ElevenLabs.AgentState) {
@@ -362,6 +488,16 @@ final class AgentSession: ObservableObject {
         print("Agent disconnected: \(reason)")
         cancelBackgroundWork()
         conversation = nil
+        // A refused override can also present as a connection that is accepted and then dropped, so a
+        // disconnect before the agent has said a single word is treated as the same failure.
+        if !isStopping, usedOverrides, !retriedWithoutOverrides, !heardAgent {
+            print("Dropped before the agent spoke — retrying as it is configured")
+            retriedWithoutOverrides = true
+            resetForConnection()
+            beginConnecting(withOverrides: false)
+            return
+        }
         status = .idle
+        if !isStopping { onEnded?() }
     }
 }

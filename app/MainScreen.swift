@@ -113,7 +113,12 @@ struct MainScreen: View {
             eyes.stop(); motion.stop(); audio.stop()
             listenTask?.cancel()
             listener.stop()
-            Speaker.shared.stop()
+            // Not when this screen is leaving because it pushed Find or Analyze. A push fires this
+            // *after* the destination has appeared and started talking, so it cut the announcement
+            // off mid-word and emptied the queue under the line the new screen had just put in it —
+            // which is why Find asked nothing and went straight to listening. Coming back from
+            // either is the `onChange` pair above; this is for going home.
+            if !showFind, !showAnalyze { Speaker.shared.stop() }
         }
     }
 }

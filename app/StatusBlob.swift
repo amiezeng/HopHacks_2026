@@ -1,11 +1,23 @@
 import SwiftUI
 
-/// A blob of water holding the readout: how far away the thing is, big, with a line under it saying
-/// what to do about that. It floats at the bottom of the camera screen in place of the debug pill
-/// that used to be there, in the same water as `WaterPour` and `GuidanceRipple`.
+/// The one thing at the bottom of the camera screen: a blob of water holding whatever the screen has to
+/// say. How far away the thing is, big, with a line under it naming what is happening — the step the
+/// voice has just announced while guidance has the screen, the conversation's own state after the
+/// handoff, when there is no distance left to show and the blob is that line alone.
+///
+/// It is the only bottom pill here. The frosted `ListeningIndicator` used to sit under it saying the
+/// same steps in different words, so the two are one thing, in the same water as `WaterPour` and
+/// `GuidanceRipple`.
 struct StatusBlob: View {
-    let headline: String
-    var detail: String?
+    /// The big line: what was measured. `nil` while nothing is — the blob is then a single line of text
+    /// rather than a readout of "—".
+    var measurement: String?
+    /// Where that measurement has to get to ("→ 10 in"), on the last step. Smaller, beside it.
+    var goal: String?
+    /// What is happening, in the same words the voice uses.
+    var text: String
+    /// Breathes, the way the old pill's microphone did.
+    var systemImage: String?
     /// The blob fills out and its foam brightens once the thing it is reporting has been reached. The
     /// screen's other "yes" is a green box, which belongs to the computer-vision overlay rather than
     /// to this.
@@ -16,21 +28,43 @@ struct StatusBlob: View {
 
     @State private var start = Date()
     @State private var bob = false
+    @State private var breathing = false
+
+    /// With a measurement above it the second line is a caption; on its own it is the whole message,
+    /// so it is set at the size the pill it replaced used.
+    private var alone: Bool { measurement == nil }
 
     var body: some View {
-        VStack(spacing: 1) {
-            Text(headline)
-                .font(.system(size: 34, weight: .heavy, design: .rounded).monospacedDigit())
-            if let detail {
-                Text(detail)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded).monospacedDigit())
-                    .opacity(0.92)
+        VStack(spacing: 3) {
+            if let measurement {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(measurement)
+                        .font(.system(size: 34, weight: .heavy, design: .rounded).monospacedDigit())
+                    if let goal {
+                        Text(goal)
+                            .font(.system(size: 17, weight: .semibold, design: .rounded).monospacedDigit())
+                            .opacity(0.75)
+                    }
+                }
             }
+            HStack(spacing: 7) {
+                if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(.system(size: alone ? 17 : 14, weight: .semibold))
+                        .symbolRenderingMode(.hierarchical)
+                        .scaleEffect(breathing ? 1.12 : 0.92)
+                }
+                Text(text)
+                    .font(.system(size: alone ? 19 : 15, weight: .semibold, design: .rounded))
+            }
+            .opacity(alone ? 1 : 0.92)
         }
+        .lineLimit(1)
+        .minimumScaleFactor(0.75)
         .foregroundStyle(.white)
         .shadow(color: .black.opacity(0.3), radius: 3, y: 1)
         .padding(.horizontal, 34)
-        .padding(.vertical, 20)
+        .padding(.vertical, alone ? 17 : 20)
         .background {
             // Only the blob is on a per-frame schedule: the text sits outside it, so a wobble doesn't
             // re-lay-out two strings 120 times a second.
@@ -57,10 +91,13 @@ struct StatusBlob: View {
         // Buoyancy, as a repeating animation rather than another per-frame schedule: it's a transform
         // on what is already drawn, so it costs nothing to keep running.
         .offset(y: bob ? 3 : -3)
+        .padding(.bottom, 32)
+        .transition(.opacity.combined(with: .scale(scale: 0.92)))
         .animation(.easeInOut(duration: 0.3), value: highlighted)
         .onAppear {
             start = .now
             withAnimation(.easeInOut(duration: 1.7).repeatForever(autoreverses: true)) { bob = true }
+            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) { breathing = true }
         }
     }
 
@@ -100,5 +137,18 @@ struct StatusBlob: View {
         }
         path.closeSubpath()
         return path
+    }
+}
+
+extension StatusBlob {
+    /// The conversation half of the screen, in the words `ListeningIndicator` used for it on Analyze —
+    /// there is nothing measured here, so this is the one-line blob.
+    init(status: AgentSession.Status) {
+        switch status {
+        case .speaking: self.init(text: "Probe is speaking…", systemImage: "speaker.wave.2.fill")
+        case .thinking: self.init(text: "Thinking…", systemImage: "ellipsis")
+        case .connecting: self.init(text: "Connecting…", systemImage: "antenna.radiowaves.left.and.right")
+        case .listening, .idle: self.init(text: "Listening…", systemImage: "mic.fill")
+        }
     }
 }

@@ -29,7 +29,8 @@ struct WaterDrop: Identifiable {
         let angle = Double.random(in: 0 ..< 2 * .pi), out = Double.random(in: 0...1).squareRoot() / 2
         at = CGPoint(x: 0.5 + cos(angle) * out, y: 0.5 + sin(angle) * out)
         born = Date.timeIntervalSinceReferenceDate + .random(in: 0...0.28)
-        life = .random(in: 1.2...2.2) * (0.55 + 0.45 * size)
+        // Long: a ring that spreads slowly reads as water settling, where a quick one reads as a flash.
+        life = .random(in: 2...3.2) * (0.6 + 0.4 * size)
         reach = size * .random(in: 0.7...1) * (0.5 + 0.5 * level)
         strength = level * (0.5 + 0.5 * size)
     }
@@ -58,10 +59,12 @@ final class AudioLevels {
     /// The three bands, in Hz: bass, mids, highs.
     static let bands: [ClosedRange<Float>] = [40...250, 250...2000, 2000...8000]
     /// Roughly how often a band can shed drops; the higher bands patter faster. Each wait is jittered
-    /// around this so the drops never fall in time with each other.
-    private static let dropGap: [TimeInterval] = [0.24, 0.17, 0.15]
-    /// As many drops as the screen can usefully hold.
-    private static let mostDrops = 140
+    /// around this so the drops never fall in time with each other. Kept slow enough that a sentence
+    /// reads as rain on open water rather than as a downpour — the rings have room to be seen.
+    private static let dropGap: [TimeInterval] = [0.5, 0.42, 0.36]
+    /// As many drops as the screen can usefully hold. Well under what a fast talker can shake loose:
+    /// past a couple of dozen overlapping rings the surface is just texture.
+    private static let mostDrops = 48
     /// How each band's noise floor learns the room it is in, per buffer (~45 of them a second): it drops
     /// onto a new quiet in a fraction of a second and creeps back up over about ten, so a fan or a hum
     /// sinks into it (a new one within a few seconds of starting) while a sentence never does — speech
@@ -172,13 +175,14 @@ final class AudioLevels {
         if speaking {
             for band in next.indices {
                 let level = next[band], since = now - lastDrop[band]
-                let beat = rise[band] > 0.06 && level > Self.hushes
+                let beat = rise[band] > 0.12 && level > Self.hushes
                 let held = level > Self.speaks && since > wait[band] * 1.5
                 guard since > wait[band], beat || held else { continue }
                 lastDrop[band] = now
                 wait[band] = Self.dropGap[band] * .random(in: 0.45...1.5)
-                // A burst: one fat drop and a handful of spray around it, more of it the louder it got.
-                for drop in 0 ... Int.random(in: 1...3) + Int(level * 4) {
+                // A burst: one fat drop and at most a little spray around it, more of it the louder it
+                // got. A handful at a time was what made the water look like static rather than rain.
+                for drop in 0 ... Int.random(in: 0...1) + Int(level * 2) {
                     drops.append(WaterDrop(band: band, level: level,
                                            size: drop == 0 ? 1 : .random(in: 0.28...0.62)))
                 }

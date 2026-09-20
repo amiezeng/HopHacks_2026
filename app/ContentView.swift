@@ -1,7 +1,6 @@
 import SwiftUI
 import Combine
 import AVFoundation
-import AudioToolbox
 import QuartzCore
 import UIKit
 
@@ -19,18 +18,33 @@ private final class ToneLevel: @unchecked Sendable {
     var ripplePan: Float = 0
     var rippleInterval: Float = 1
     var rippleSweep: Float = 0
+    /// The phase chime: two short pips, struck by bumping `chimeStrikes`. The render thread compares it
+    /// with the last value it saw rather than reading a flag it has to clear, so a strike can't be
+    /// missed between two callbacks. `chimeRising` is +1 for a pair that steps up — on to the next
+    /// phase — and -1 for one that steps back down.
+    var chimeStrikes: Int32 = 0
+    var chimeRising: Float = 1
 }
 
-/// Guides the user's hand to the object with a tone that moves between their ears, in two phases:
+/// Guides the user's hand to the object with a tone that moves between their ears, in three steps. The
+/// steps are the whole of this screen, so each one is announced as it is entered ("Step two of three…"),
+/// marked by a two-pip chime, and named in the pill at the bottom of the screen — a person who has just
+/// started following the tone has to be told which axis they are on before the tone means anything:
 ///
 /// 1. **Depth.** The tone sits in the *right* ear while the hand has to go further forward, and in the
 ///    *left* ear once it has gone past the object. Silent otherwise — no spoken direction on this axis.
 /// 2. **Lateral.** Once the depth is right, the tone pans to the side the hand has to travel. The
 ///    voice only announces the phase once; it does not repeat "left"/"right", the tone does that.
+/// 3. **Contact**, and then **ready**: the hand is on the object, so the tone stops and the voice asks
+///    for it to be brought up to the camera, until it is close enough to read.
 ///
-/// In both, the volume is the remaining error: louder means closer. Because direction is carried by the
-/// stereo image, this needs headphones — the phone's own two speakers are at the top and bottom of the
-/// case in portrait, so panning between them says nothing about left and right.
+/// The chime is the one cue that does not need headphones — it is centred, where the tone's whole
+/// meaning is which ear it is in — so on a bare phone the steps are still audible even though the
+/// steering isn't.
+///
+/// In the two steering steps the volume is the remaining error: louder means closer. Because direction
+/// is carried by the stereo image, the steering needs headphones — the phone's own two speakers are at
+/// the top and bottom of the case in portrait, so panning between them says nothing about left and right.
 ///
 /// Under the tone runs a **ripple**: a soft water drop struck from the side to move toward, closing up
 /// as the error does. It says the same thing the tone does, in a way you can follow without holding a
@@ -45,11 +59,40 @@ private final class ToneLevel: @unchecked Sendable {
 /// engines down — and the tone engine, started behind a one-shot `isPlaying` flag, never came back.
 @MainActor
 final class DistanceBeepController: ObservableObject {
-    private enum Phase { case idle, depth, lateral, contact }
+    /// In order, so `setPhase` can tell going forwards from falling back and chime accordingly. Also
+    /// what the pill at the bottom of the screen shows, which is why the labels live here: the spoken
+    /// line and the written one are the same step and should not be able to drift apart.
+    enum Phase: Int, Comparable {
+        case idle, depth, lateral, contact, ready
 
-    /// A repeating spoken cue. Never the word "back": `VoiceListener` is listening for it as the
-    /// "go back" command the whole time, and would hear us say it through the speaker. Left/right is
-    /// deliberately not here: repeating it was a chant on top of a tone that already says it.
+        static func < (a: Phase, b: Phase) -> Bool { a.rawValue < b.rawValue }
+
+        var label: String {
+            switch self {
+            case .idle: "Looking…"
+            case .depth: "Step 1 of 3 · Reach out"
+            case .lateral: "Step 2 of 3 · Move across"
+            case .contact: "Step 3 of 3 · Take hold"
+            case .ready: "Close enough · Hold steady"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .idle: "viewfinder"
+            case .depth: "hand.raised.fill"
+            case .lateral: "arrow.left.and.right"
+            case .contact: "hand.point.up.left.fill"
+            case .ready: "checkmark.circle.fill"
+            }
+        }
+    }
+
+    /// A repeating spoken cue. Never the word "back" — nor any of `ContentView.backKeywords`, and that
+    /// goes for the phase lines in `setPhase` too: `VoiceListener` is listening for them as the "go
+    /// back" command the whole time, and would hear us say one through the speaker. (It is why step one
+    /// is "reach your hand out" and not "move your hand forward or back".) Left/right is deliberately
+    /// not here: repeating it was a chant on top of a tone that already says it.
     private enum Cue: String {
         case findHand = "Hold your hand up in front of the camera"
         case findObject = "Move the camera around so I can see it"
@@ -61,7 +104,6 @@ final class DistanceBeepController: ObservableObject {
     /// The same direction the tone is carrying, for `GuidanceRipple` to draw over the camera feed.
     /// Not `@Published`: see `GuidanceCue`.
     let cue = GuidanceCue()
-    private let speechSynthesizer = AVSpeechSynthesizer()
     private let directionFeedback = UIImpactFeedbackGenerator(style: .medium)
     private let readReadyFeedback = UINotificationFeedbackGenerator()
     private var sourceNode: AVAudioSourceNode?
@@ -70,7 +112,12 @@ final class DistanceBeepController: ObservableObject {
     private var lastHeldBack = Date.distantPast
 
     private var active = false
-    private let greeting = "Move your hand toward the object and follow the tone."
+    /// Said once, as guidance takes over from the question. It names the shape of what is about to
+    /// happen — three steps — because every line after it is "step one of three", and a count that
+    /// starts without being introduced is one more thing to work out while being led somewhere.
+    private var greeting: String {
+        "Hold your hand up in front of the camera, and I'll guide you to the \(objectName) in three steps."
+    }
     /// Set when a one-shot line was held back because something else was mid-sentence, so it lands
     /// right after rather than on top of it. Retried on each update until it is spoken.
     private var pendingGreeting = false
@@ -79,7 +126,9 @@ final class DistanceBeepController: ObservableObject {
     private var lastCue: Cue?
     private var lastSpoken = Date.distantPast
 
-    private var phase = Phase.idle
+    /// Published for the pill only, and it changes a handful of times a session rather than per frame —
+    /// the per-frame half of the same state is `cue`, which is `@Observable` for exactly that reason.
+    @Published private(set) var phase = Phase.idle
     /// `found` here means "the hand is at the object's depth", so phase 1 is `!found` and phase 2 is
     /// `found`. The release threshold is deliberately double the contact one: swinging the arm sideways
     /// pivots at the shoulder and changes depth, so phase 2 constantly nudges phase 1's condition, and
@@ -96,11 +145,6 @@ final class DistanceBeepController: ObservableObject {
     private var lastMeasured: TimeInterval = 0
     private var hasHeadphones = false
     private var routeObserver: NSObjectProtocol?
-
-    private var foundSoundPlayed = false
-    private var approachPromptPlayed = false
-    private var closePromptPlayed = false
-    private var readReadyHapticPlayed = false
 
     /// Lateral offsets below this count as lined up, in normalized image units across the screen.
     private let lateralTolerance: CGFloat = 0.05
@@ -126,9 +170,12 @@ final class DistanceBeepController: ObservableObject {
     /// one: each attempt is a session activation, and hammering those disrupts playback everywhere.
     private let toneRetryGap: TimeInterval = 2
 
-    /// Called as the screen appears. Guidance does not wait for the user to name a target: the object
-    /// detector is already running, and the screen going quiet until someone has spoken is the whole
-    /// problem this feature exists to solve.
+    /// Called once the user has named a target, or once waiting for them to has gone on long enough
+    /// (`ContentView.namingGrace`) — guidance must not depend on someone having spoken, because a screen
+    /// that stays quiet until they do is the whole problem this feature exists to solve.
+    ///
+    /// Everything audible from here is ours: the tone on our own `AVAudioEngine`, the voice through
+    /// `Speaker`, both on the shared session. Nothing else on this screen holds the audio hardware.
     func begin() {
         guard !active else { return }
         active = true
@@ -177,34 +224,17 @@ final class DistanceBeepController: ObservableObject {
             return
         }
 
+        // A line held back because something else was mid-sentence gets its turn here, whichever branch
+        // below set it.
+        drainPhaseLine()
+
         // Tied to `approaching`, not to `objectFound`: the grip hides the fingertips, so `objectFound`
-        // flickers while the object is being carried to the camera, and re-arming on each flicker
-        // repeated the prompts.
-        if !approaching {
-            foundSoundPlayed = false
-            approachPromptPlayed = false
-            closePromptPlayed = false
-            readReadyHapticPlayed = false
-        }
-
+        // flickers while the object is being carried to the camera. `approaching` latches the first
+        // contact and only lets go once the object has been out of sight for two seconds, which is what
+        // stops the last two steps from being announced over and over as it flickers.
         if objectFound || approaching {
-            setPhase(.contact)
-            if !foundSoundPlayed {
-                foundSoundPlayed = true
-                AudioServicesPlaySystemSound(1057)
-            }
+            setPhase(objectClose ? .ready : .contact)
             silence()
-
-            if !objectClose && !approachPromptPlayed {
-                approachPromptPlayed = speak("Hold the \(objectName) closer to the screen until it is close enough to read.")
-            } else if objectClose && !closePromptPlayed {
-                if !readReadyHapticPlayed {
-                    readReadyHapticPlayed = true
-                    readReadyFeedback.prepare()
-                    readReadyFeedback.notificationOccurred(.success)
-                }
-                closePromptPlayed = speak("The \(objectName) is close enough to read.")
-            }
             return
         }
 
@@ -227,10 +257,6 @@ final class DistanceBeepController: ObservableObject {
 
         let aligned = depthAligned.update(distance: measurement.depthGap.map { abs($0) }, time: now)
         setPhase(aligned ? .lateral : .depth)
-        if let line = pendingPhaseLine, speak(line) {
-            pendingPhaseLine = nil
-            lastSpoken = Date()
-        }
 
         switch phase {
         case .depth:
@@ -261,13 +287,15 @@ final class DistanceBeepController: ObservableObject {
                 sweep: 0,
                 direction: abs(dx) <= Double(lateralTolerance) ? nil : (dx > 0 ? .right : .left)
             )
-        case .idle, .contact:
+        case .idle, .contact, .ready:
             silence()
         }
     }
 
     func stop() {
-        speechSynthesizer.stopSpeaking(at: .immediate)
+        // Cuts the line in progress: leaving the screen mid-direction and hearing the rest of it on the
+        // next one is worse than the sentence being clipped.
+        Speaker.shared.stop()
         if let routeObserver {
             NotificationCenter.default.removeObserver(routeObserver)
             self.routeObserver = nil
@@ -277,10 +305,6 @@ final class DistanceBeepController: ObservableObject {
         pendingPhaseLine = nil
         lastCue = nil
         lastSpoken = .distantPast
-        foundSoundPlayed = false
-        approachPromptPlayed = false
-        closePromptPlayed = false
-        readReadyHapticPlayed = false
         silence()
     }
 
@@ -346,18 +370,49 @@ final class DistanceBeepController: ObservableObject {
 
     private func setPhase(_ next: Phase) {
         guard next != phase else { return }
+        let advanced = next > phase
         phase = next
         lastCue = nil
         print("Guidance: phase \(next)")
-        // Said once on arrival. Both phases can put the tone in the same ear for different reasons, so
-        // this is the only thing telling the user which axis they are on.
+        // The chime and the line announce the same thing at two speeds: the chime is struck by the
+        // render thread on the next buffer, so it marks the step the moment it changes, while the line
+        // explaining it can be a second behind (held back behind whatever is being said, then fetched).
+        if next != .idle { chime(rising: advanced) }
+        // Said once on arrival, and counted out loud. Both steering phases can put the tone in the same
+        // ear for different reasons, so this is the only thing telling the user which axis they are on.
         switch next {
-        case .depth: pendingPhaseLine = hasHeadphones
-            ? "Move your hand forward or back, and follow the tone."
-            : "Move your hand forward or back."
-        case .lateral: pendingPhaseLine = "Good. Now move left or right."
-        case .idle, .contact: pendingPhaseLine = nil
+        case .depth:
+            pendingPhaseLine = hasHeadphones
+                ? "Step one of three. Reach your hand out toward the \(objectName), and follow the tone."
+                : "Step one of three. Reach your hand out toward the \(objectName), a little at a time."
+        case .lateral:
+            pendingPhaseLine = hasHeadphones
+                ? "Step two of three. Good. Now move your hand left or right, toward the tone."
+                : "Step two of three. Good. Now move your hand left or right."
+        case .contact:
+            pendingPhaseLine = "Step three of three. That's it. Take hold of the \(objectName) and bring it up to the camera."
+        case .ready:
+            readReadyFeedback.prepare()
+            readReadyFeedback.notificationOccurred(.success)
+            pendingPhaseLine = "That's close enough to read. Hold it steady."
+        case .idle:
+            pendingPhaseLine = nil
         }
+        drainPhaseLine()
+    }
+
+    private func drainPhaseLine() {
+        guard let line = pendingPhaseLine, speak(line) else { return }
+        pendingPhaseLine = nil
+        lastSpoken = Date()
+    }
+
+    /// Two pips, up for a step forward and down for falling back to the one before it. Struck rather
+    /// than spoken because it lands immediately and is over in a quarter of a second: the step has
+    /// changed and the hand is already moving, so the acknowledgement has to be quicker than a sentence.
+    private func chime(rising: Bool) {
+        tone.chimeRising = rising ? 1 : -1
+        tone.chimeStrikes &+= 1
     }
 
     private static let headphonePorts: Set<AVAudioSession.Port> = [
@@ -416,19 +471,20 @@ final class DistanceBeepController: ObservableObject {
     }
 
     /// Returns false when something else is already talking, so a one-shot prompt can be held back and
-    /// tried again on the next update instead of being swallowed.
+    /// tried again on the next update instead of being swallowed. Everything this screen says goes
+    /// through `Speaker` — the guidance used to have an `AVSpeechSynthesizer` of its own, which meant
+    /// the directions came in a different voice from the question that had just been asked, and neither
+    /// engine could hear the other well enough to take turns.
     @discardableResult
     private func speak(_ text: String) -> Bool {
         guard !isTalking else { return false }
-        let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-        utterance.rate = 0.48
-        utterance.volume = 1.0
-        speechSynthesizer.speak(utterance)
+        Speaker.shared.speak(text)
         return true
     }
 
-    private var isTalking: Bool { speechSynthesizer.isSpeaking || Speaker.shared.isSpeaking }
+    /// `isBusy`, not `isSpeaking`: a line that is still being fetched isn't out of the speaker yet, and
+    /// queueing the next one behind it lands the two back to back with no gap.
+    private var isTalking: Bool { Speaker.shared.isBusy }
 
     /// `AVAudioEngine` isn't `Sendable`; it's carried off the actor only to be started, and only one
     /// start is ever in flight (`startingTone` guards it).
@@ -495,6 +551,18 @@ final class DistanceBeepController: ObservableObject {
         let rippleFade = pow(0.001, 1 / (0.35 * sampleRate))
         let rippleGlide = 1 - pow(0.02, 1 / (0.08 * sampleRate))
 
+        // The phase chime: two pips of `chimeNote` seconds, the second a fourth above the first going
+        // up and a fourth below it coming back down. Centred, not panned — it is the one cue that has
+        // to survive being played out of the phone's own speakers, where left and right mean nothing.
+        var chimeStruck = tone.chimeStrikes
+        var chimeTime = -1.0
+        var chimePhase = 0.0
+        var chimeUp = 1.0
+        let chimeNote = 0.13
+        let chimeBase = 784.0
+        let chimeStep = 1.335
+        let chimeLevel = 0.3
+
         let node = AVAudioSourceNode { _, _, frameCount, audioBufferList in
             let buffers = UnsafeMutableAudioBufferListPointer(audioBufferList)
             guard buffers.count >= 2,
@@ -555,6 +623,32 @@ final class DistanceBeepController: ObservableObject {
                     rippleDecay = 0
                 }
 
+                // A strike the main actor asked for since the last frame. Compared rather than
+                // cleared: the render thread doesn't write to `tone`, so it can't lose one.
+                if tone.chimeStrikes != chimeStruck {
+                    chimeStruck = tone.chimeStrikes
+                    chimeUp = Double(tone.chimeRising)
+                    chimeTime = 0
+                    chimePhase = 0
+                }
+                if chimeTime >= 0 {
+                    let second = chimeTime >= chimeNote
+                    let within = second ? chimeTime - chimeNote : chimeTime
+                    // High note first coming down, second going up.
+                    let high = second == (chimeUp > 0)
+                    // A half sine over the pip, squared: silent at both ends, so the strike doesn't
+                    // click and the pitch change at the note boundary lands in silence rather than
+                    // mid-cycle. No envelope state to carry either — it is a function of the time in.
+                    let envelope = sin(Double.pi * within / chimeNote)
+                    let pip = sin(chimePhase) * envelope * envelope * chimeLevel
+                    mixLeft += pip * 0.707
+                    mixRight += pip * 0.707
+                    chimePhase += 2.0 * Double.pi * (high ? chimeBase * chimeStep : chimeBase) / sampleRate
+                    if chimePhase >= 2.0 * Double.pi { chimePhase -= 2.0 * Double.pi }
+                    chimeTime += 1 / sampleRate
+                    if chimeTime >= chimeNote * 2 { chimeTime = -1 }
+                }
+
                 left[frame] = Float(mixLeft)
                 right[frame] = Float(mixRight)
             }
@@ -570,21 +664,38 @@ final class DistanceBeepController: ObservableObject {
 
 struct ContentView: View {
     var onBack: () -> Void = {}
+    /// Listens for "go back", and nothing else, for as long as guidance has the screen — the object is
+    /// fixed (`target`). The conversational agent is deliberately not on this screen *while it is being
+    /// guided*: steering a hand is a stream of short, exact directions driven by what the camera sees
+    /// frame by frame, which is `DistanceBeepController` reading out its own state — there is nothing
+    /// there for a language model to decide, and having one meant it held the audio session (LiveKit
+    /// runs the hardware in its own mode), which cost this screen its tone.
+    ///
+    /// Once the three steps are done the tone has nothing left to say, and `ObjectConversation` hands
+    /// the screen over to the agent — which is when this listener stops and the agent's own keywords
+    /// become the way back.
     @StateObject private var listener = VoiceListener()
     @StateObject private var arController = ARSessionController()
     // ObjectDetector runs Vision hand pose plus LiDAR distances (YOLO EGOHOS is disabled).
     @StateObject private var detector = ObjectDetector()
-    @State private var announcer = InteractionAnnouncer()
     @State private var listenTask: Task<Void, Never>?
     @State private var startTask: Task<Void, Never>?
-    @State private var announcementsEnabled = false
 
     private let backKeywords = ["go back", "back", "return", "previous", "exit", "leave", "quit", "cancel"]
-    // Object names can contain words like "back", so only unambiguous phrases work while the user is naming an object.
-    private let captureBackKeywords = ["go back", "return"]
-    @State private var targetObject: String?
+    /// What this screen guides to. There is no point asking: `SegmentationDetector.classFilter` is one
+    /// COCO class, so a named object it can't segment would be a question whose answer changes nothing
+    /// but the wording. The screen used to open by asking ("What do you want to find?" through
+    /// `VoiceListener`, parsed by `TargetParser`) and wait up to twenty seconds for an answer before
+    /// guiding anyway; that step is gone. Widen the filter first if it ever comes back.
+    private static let target = "bottle"
+    /// Guidance owns the screen's audio from the moment it starts, and it starts exactly once.
+    @State private var guidanceStarted = false
     @StateObject private var segmenter = SegmentationDetector()
     @StateObject private var beepController = DistanceBeepController()
+    /// What happens after the third step: the label is read off the object the user is now holding and
+    /// handed to the agent, which says what it is and then answers questions about it. It ignores every
+    /// frame until then, so none of the above changes.
+    @StateObject private var conversation = ObjectConversation()
 
     var body: some View {
         // Full-screen geometry so the overlay covers the same area as the camera preview.
@@ -614,13 +725,9 @@ struct ContentView: View {
                         leftHandHoldingObject: detector.leftHandHoldingObject,
                         rightHandHoldingObject: detector.rightHandHoldingObject,
                         viewSize: contentSize,
-                        leftHandDistance: detector.leftHandDistance,
-                        rightHandDistance: detector.rightHandDistance,
                         selectedPoint: detector.selectedPoint,
                         leftHandCenter: detector.leftHandCenter,
                         rightHandCenter: detector.rightHandCenter,
-                        leftHandToPointDistance: detector.leftHandToPointDistance,
-                        rightHandToPointDistance: detector.rightHandToPointDistance,
                         leftHandEdge: detector.leftHandEdge,
                         rightHandEdge: detector.rightHandEdge,
                         objectFound: detector.objectFound,
@@ -630,12 +737,40 @@ struct ContentView: View {
                         objectClose: detector.objectClose
                     )
                 }
+                // Both detectors keep running through the conversation — the pipeline is untouched —
+                // but their masks, boxes and fingertip distances are the guidance's working out, and
+                // the guidance is over. `.opacity` rather than a branch, so it fades rather than cuts.
+                .opacity(conversation.stage == .idle ? 1 : 0)
+
+                // Over everything, because from the handoff on it *is* the screen.
+                ConversationWater(mood: conversation.mood)
+                    .ignoresSafeArea()
             }
             .onAppear {
-                beepController.begin()
+                // `beepController.begin()` waits until there is something to guide to — see
+                // `beginGuidance`. Everything it says would otherwise talk over the question.
                 arController.onFrame = { frame in
                     detector.process(frame: frame)
                     segmenter.process(frame: frame)
+                    // Dropped until the guidance is over and the label is being read — see
+                    // `ObjectConversation.process`.
+                    conversation.process(frame: frame)
+                }
+                conversation.onBack = { onBack() }
+                // The agent is about to take the audio hardware, so both of the things holding it let
+                // go first: the recogniser's microphone and the guidance tone's engine.
+                conversation.onHandOff = {
+                    listenTask?.cancel()
+                    listener.stop()
+                    beepController.shutdown()
+                }
+                // No agent to talk to. It says what it can off the label itself, and the screen takes
+                // its own listener back so "go back" still works.
+                conversation.onEnded = {
+                    Task {
+                        await Speaker.shared.waitUntilIdle()
+                        listenForBack()
+                    }
                 }
                 // `session.run` is heavy and the navigation push is still animating; starting it on top
                 // of the push is what made the way in here stutter.
@@ -661,7 +796,16 @@ struct ContentView: View {
                     objectCenter: segmenter.objectMask?.center
                 )
             }
+            // The last step is done: the object is in the user's hand and held close enough to read, so
+            // the screen changes hands. `begin` latches, which matters here — `.ready` can fall back to
+            // `.contact` and return if the object dips out of the frame, and that must not start a
+            // second conversation.
+            .onChange(of: beepController.phase) { _, phase in
+                guard phase == .ready else { return }
+                conversation.begin(objectName: Self.target)
+            }
             .onDisappear {
+                conversation.stop()
                 beepController.shutdown()
                 startTask?.cancel()
                 arController.pause()
@@ -671,48 +815,108 @@ struct ContentView: View {
             .sensoryFeedback(.success, trigger: detector.approaching) { _, active in active }
             .sensoryFeedback(.success, trigger: detector.objectClose) { _, close in close }
             .task {
-                Speaker.shared.speak("What do you want to find?")
-                await listenForTarget()
+                beginGuidance()
             }
             .onDisappear {
                 listenTask?.cancel()
                 listener.stop()
             }
-            .onChange(of: detector.objectFound) { _, found in
-                guard announcementsEnabled else { return }
-                announcer.update(confidence: found ? 1 : 0)
-            }
         }
         .ignoresSafeArea()
+        .overlay(alignment: .bottom) { statusBlob }
+        .animation(.easeInOut, value: beepController.phase)
+        .animation(.easeInOut, value: guidanceStarted)
+        .animation(.easeInOut, value: conversation.stage)
+        .animation(.easeInOut, value: conversation.agentStatus)
     }
 
-    private func listenForTarget() async {
-        await Speaker.shared.waitUntilIdle()
-        guard !Task.isCancelled else { return }
-        await listener.start(
-            commands: ["back": captureBackKeywords],
-            onCommand: { _ in onBack() },
-            onUtterance: handleTarget
-        )
+    /// Whoever has the screen, in writing, in the one blob of water at the bottom of it. For the three
+    /// steps that is the distance the camera is measuring with the step under it — the step the voice
+    /// announces and the chime marks, so a demo can be followed by someone who isn't wearing the
+    /// headphones — and after the handoff the conversation's own state, which has nothing to measure.
+    ///
+    /// This used to be two: a frosted `ListeningIndicator` naming the step, sitting under a `StatusBlob`
+    /// giving the distance. Nothing is lost by merging them — the per-hand numbers the blob's second
+    /// line carried are still drawn next to the fingertips they belong to.
+    @ViewBuilder
+    private var statusBlob: some View {
+        switch conversation.stage {
+        case .idle:
+            if guidanceStarted {
+                StatusBlob(
+                    measurement: guidanceDistance.map { ObjectDetector.inches($0) },
+                    goal: guidanceGoal,
+                    text: guidanceLabel,
+                    systemImage: guidanceIcon,
+                    highlighted: detector.approaching ? detector.objectClose : detector.objectFound
+                )
+            }
+        case .reading:
+            StatusBlob(text: "Reading the label…", systemImage: "text.viewfinder")
+        case .talking:
+            StatusBlob(status: conversation.agentStatus)
+        case .ended:
+            StatusBlob(text: "Say go back to finish", systemImage: "mic.fill")
+        }
     }
 
-    private func handleTarget(_ text: String) {
-        let objectName = TargetParser.extract(from: text)
-        guard !objectName.isEmpty else {
-            Speaker.shared.speak("Sorry, I didn't catch that. What do you want to find?")
-            listenTask = Task { await listenForTarget() }
-            return
+    /// What the blob puts on its big line: how far the hand still has to travel, or — once the object
+    /// has been picked up — how far it is from the camera. `nil` while nothing is being measured, so the
+    /// blob is the step alone rather than a readout of "—".
+    private var guidanceDistance: Float? {
+        if detector.approaching { return detector.cameraDistance }
+        if detector.selectedPoint != nil {
+            return [detector.leftHandToPointDistance, detector.rightHandToPointDistance].compactMap { $0 }.min()
         }
+        if detector.leftHandEdge != nil || detector.rightHandEdge != nil {
+            return [detector.leftHandEdge?.distance, detector.rightHandEdge?.distance].compactMap { $0 }.min()
+        }
+        return [detector.leftHandDistance, detector.rightHandDistance].compactMap { $0 }.min()
+    }
 
-        targetObject = objectName
-        Speaker.shared.speak("Please place your hand forward, I will guide you to the \(objectName).")
-        listenTask = Task {
-            await Speaker.shared.waitUntilIdle()
-            guard !Task.isCancelled else { return }
-            announcementsEnabled = true
-            beepController.setTarget(objectName)
-            await listener.start(commands: ["back": backKeywords]) { _ in onBack() }
-        }
+    /// Where that distance has to get to, on the step that has one: the object is in the hand and being
+    /// brought up to the camera, and "closer" means closer to a number.
+    private var guidanceGoal: String? {
+        guard detector.approaching, !detector.objectClose else { return nil }
+        return "→ " + String(format: "%.0f in", ObjectDetector.readDistance * 39.3701)
+    }
+
+    /// The step, in the words the voice used to announce it — `Phase` owns both so they can't drift.
+    /// The one thing said here that isn't a step is being too close for the camera to focus, which is
+    /// checked first: it is why the read isn't happening, even while still debounced as close enough.
+    private var guidanceLabel: String {
+        tooClose ? "Too close · Move it back" : beepController.phase.label
+    }
+
+    private var guidanceIcon: String {
+        tooClose ? "exclamationmark.circle.fill" : beepController.phase.icon
+    }
+
+    private var tooClose: Bool {
+        guard detector.approaching, let distance = detector.cameraDistance else { return false }
+        return distance < ObjectDetector.tooCloseDistance
+    }
+
+    /// Hands the screen to `DistanceBeepController` for good — it owns the voice and the tone from
+    /// here — and leaves the recogniser listening for one word.
+    private func beginGuidance() {
+        guard !guidanceStarted else { return }
+        guidanceStarted = true
+        print("Find: guiding to \(Self.target)")
+        beepController.setTarget(Self.target)
+        // `begin`'s greeting is the handover line, and it is held back behind anything still being said
+        // (`pendingGreeting`, gated on `Speaker.isBusy`), so it can't land on top of the announcement
+        // `MainScreen` made on the way in here.
+        beepController.begin()
+        listenForBack()
+    }
+
+    /// The screen's own way out, for as long as the agent doesn't have the microphone. Started here,
+    /// stopped at the handoff (`conversation.onHandOff`), and started again if the agent turns out not
+    /// to be there at all.
+    private func listenForBack() {
+        listenTask?.cancel()
+        listenTask = Task { await listener.start(commands: ["back": backKeywords]) { _ in onBack() } }
     }
 }
 

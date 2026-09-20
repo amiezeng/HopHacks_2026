@@ -32,7 +32,7 @@ struct WaterVisualizer: View {
                 let now = timeline.date.timeIntervalSinceReferenceDate
                 // How far from its patch's middle a drop can land, and how wide the rings it throws
                 // can grow. Between them the water gets rained on all over, not tapped in three spots.
-                let scatter = CGSize(width: size.width * 0.5, height: size.height * 0.55)
+                let scatter = CGSize(width: size.width * 0.44, height: size.height * 0.48)
                 let widest = size.width * 0.42
                 for drop in drops where drop.band < Self.patches.count {
                     let age = CGFloat((now - drop.born) / drop.life)
@@ -46,22 +46,25 @@ struct WaterVisualizer: View {
                     let radius = widest * drop.reach * spread
                     let weight = 0.4 + 0.6 * drop.strength
 
-                    // The splash where it lands: a fat drop of water that sinks away at once.
+                    // The splash where it lands: a bead of water that sinks away at once. Faint — it is
+                    // the brightest thing on the surface, so it is what reads as noise if it is heavy.
                     if age < 0.35 {
                         let pop = 1 - age / 0.35
-                        context.fill(Self.disc(spot, widest * 0.2 * weight * (0.3 + 0.7 * pop)),
-                                     with: .color(.white.opacity(0.8 * pop * weight)))
+                        context.fill(Self.disc(spot, widest * 0.16 * weight * (0.3 + 0.7 * pop)),
+                                     with: .color(.white.opacity(0.3 * pop * weight)))
                     }
                     // The ring it throws out, with a fainter one trailing behind it. Both hold their
-                    // weight for most of the way out and thin down as they go under.
+                    // weight for most of the way out and thin down as they go under. Everything here is
+                    // drawn thin and low: a dozen rings this light stack into water, where the same
+                    // dozen drawn solid stacked into a white smear.
                     let ink = pow(fade, 0.7)
                     context.stroke(Self.disc(spot, radius),
-                                   with: .color(.white.opacity(0.9 * weight * ink)),
-                                   lineWidth: 2 + 11 * weight * ink)
+                                   with: .color(.white.opacity(0.3 * weight * ink)),
+                                   lineWidth: 1.5 + 5 * weight * ink)
                     if spread > 0.25 {
                         context.stroke(Self.disc(spot, radius * 0.58),
-                                       with: .color(.white.opacity(0.4 * weight * ink)),
-                                       lineWidth: 1 + 5 * weight * ink)
+                                       with: .color(.white.opacity(0.13 * weight * ink)),
+                                       lineWidth: 1 + 2.5 * weight * ink)
                     }
                 }
             }

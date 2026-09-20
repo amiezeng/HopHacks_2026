@@ -122,6 +122,13 @@ class ObjectDetector: ObservableObject {
     // still fits in frame. Much nearer than that the wide camera can't focus.
     static let readDistance: Float = 0.25     // meters (≈10 in)
     static let tooCloseDistance: Float = 0.15 // meters (≈6 in)
+    // Everything measured here is in meters and everything shown to the user is in inches, so the
+    // conversion lives in one place: the labels on the overlay and the blob at the bottom of the screen
+    // are the same numbers and must not be able to round differently.
+    static func inches(_ meters: Float?) -> String {
+        guard let meters else { return "—" }
+        return String(format: "%.1f in", meters * 39.3701)
+    }
     // Same debounce as `found`, on the camera distance with read-range thresholds.
     private static func makeCloseTracker() -> FoundTracker {
         var tracker = FoundTracker()
