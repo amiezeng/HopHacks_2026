@@ -301,12 +301,14 @@ class SegmentationDetector: ObservableObject {
         let x0 = Int((padX * protoScale).rounded()), x1 = protoW - x0
         let y0 = Int((padY * protoScale).rounded()), y1 = protoH - y0
         let canvasW = x1 - x0, canvasH = y1 - y0
-        var rgba = [UInt8](repeating: 0, count: canvasW * canvasH * 4)
-        var inside = [Bool](repeating: false, count: canvasW * canvasH)
+        var largestMask = [Bool](repeating: false, count: canvasW * canvasH)
+        var largestMaskArea = 0
+        var largestMaskColor: (UInt8, UInt8, UInt8) = (255, 255, 255)
 
         var segments: [Segment] = []
         for candidate in kept {
             let rgb = Self.palette[candidate.classIndex % Self.palette.count]
+            var candidateMask = [Bool](repeating: false, count: canvasW * canvasH)
             var coeffs = [Float](repeating: 0, count: maskDim)
             for k in 0..<maskDim { coeffs[k] = p(coeffOffset + k, candidate.anchor) }
 
@@ -325,11 +327,18 @@ class SegmentationDetector: ObservableObject {
                         // sigmoid(logit) > maskThreshold
                         guard 1 / (1 + exp(-logit)) > maskThreshold else { continue }
                         let i = (y - y0) * canvasW + (x - x0)
-                        inside[i] = true
-                        let p = i * 4
-                        rgba[p] = rgb.0; rgba[p + 1] = rgb.1; rgba[p + 2] = rgb.2; rgba[p + 3] = 255
+                        candidateMask[i] = true
                     }
                 }
+            }
+
+            let candidateArea = candidateMask.reduce(into: 0) { count, pixel in
+                if pixel { count += 1 }
+            }
+            if candidateArea > largestMaskArea {
+                largestMask = candidateMask
+                largestMaskArea = candidateArea
+                largestMaskColor = rgb
             }
 
             // Model pixels -> normalized upright image, then flip to Vision coords.
@@ -352,10 +361,19 @@ class SegmentationDetector: ObservableObject {
         let line = "\(classNames.count) classes, \(allowedIndices.count) allowed · top \(topName) \(String(format: "%.2f", topScore * 100))% (min \(Int(confidenceThreshold * 100))%)"
         DispatchQueue.main.async { self.status = line }
 
+        var rgba = [UInt8](repeating: 0, count: canvasW * canvasH * 4)
+        for i in largestMask.indices where largestMask[i] {
+            let pixel = i * 4
+            rgba[pixel] = largestMaskColor.0
+            rgba[pixel + 1] = largestMaskColor.1
+            rgba[pixel + 2] = largestMaskColor.2
+            rgba[pixel + 3] = 255
+        }
+
         return (
             segments,
             makeImage(rgba: rgba, width: canvasW, height: canvasH),
-            ObjectMask(width: canvasW, height: canvasH, pixels: inside)
+            ObjectMask(width: canvasW, height: canvasH, pixels: largestMask)
         )
     }
 
