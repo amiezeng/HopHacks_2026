@@ -41,6 +41,12 @@
 		D716FA4AE2161C85EA0F4CC9 /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6563B8BE5EBDABE5DDE83D5D /* CameraView.swift */; };
 		E26FD30B4385B7C2FC62FEC1 /* StatusBlob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 042CD5AF293CF5660EA95F25 /* StatusBlob.swift */; };
 		E9C7FB4161032AE67243F8E5 /* Secrets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71DF88D8113DD76FBDCD793 /* Secrets.swift */; };
+		E5A1C0DE00000000000000B7 /* ElevenLabs in Frameworks */ = {isa = PBXBuildFile; productRef = E5A1C0DE00000000000000C2 /* ElevenLabs */; };
+		E5A1C0DE00000000000000B8 /* AgentSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A7 /* AgentSession.swift */; };
+		E5A1C0DE00000000000000B9 /* VolumeHUDHider.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A8 /* VolumeHUDHider.swift */; };
+		E5A1C0DE00000000000000BA /* TextReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000A9 /* TextReader.swift */; };
+		E5A1C0DE00000000000000BB /* AnalyzeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000AA /* AnalyzeView.swift */; };
+		E5A1C0DE00000000000000BC /* TextConsolidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A1C0DE00000000000000AB /* TextConsolidator.swift */; };
 		FD378C8B85B1306FFF03D430 /* AudioLevels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD463215E3C783458B577589 /* AudioLevels.swift */; };
 /* End PBXBuildFile section */
 
@@ -79,9 +85,26 @@
 		D042B4C320C0A8030FCE89C3 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D3F7D5E3895552FC8298F5D9 /* VoiceListener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceListener.swift; sourceTree = "<group>"; };
 		D9A59E3D58DFA02F1D36A12C /* Preloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preloader.swift; sourceTree = "<group>"; };
+		DB6D23497E7DBD69C26B3220 /* homeImage.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = homeImage.png; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A7 /* AgentSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSession.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A8 /* VolumeHUDHider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumeHUDHider.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000A9 /* TextReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextReader.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000AA /* AnalyzeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyzeView.swift; sourceTree = "<group>"; };
+		E5A1C0DE00000000000000AB /* TextConsolidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextConsolidator.swift; sourceTree = "<group>"; };
 		E461E6687B4974F080215D52 /* WaterVisualizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaterVisualizer.swift; sourceTree = "<group>"; };
 		FCBF7EE06BA5F4C4C842A4E4 /* ListeningIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningIndicator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E5A1C0DE00000000000000D1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E5A1C0DE00000000000000B7 /* ElevenLabs in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		1ACCD3A56B4BF8334F3423E1 /* Products */ = {
@@ -128,6 +151,11 @@
 				1CA05BACD95D4DD9D68FE3DC /* Floating.swift */,
 				BE5473080B61AA09B9C3EFB6 /* GuidanceRipple.swift */,
 				08C95FBFA6D313133260559A /* HandHighlight.swift */,
+				E5A1C0DE00000000000000AB /* TextConsolidator.swift */,
+				E5A1C0DE00000000000000AA /* AnalyzeView.swift */,
+				E5A1C0DE00000000000000A9 /* TextReader.swift */,
+				E5A1C0DE00000000000000A8 /* VolumeHUDHider.swift */,
+				E5A1C0DE00000000000000A7 /* AgentSession.swift */,
 				A79294FF0E3302AD38048183 /* HomeArt.swift */,
 				25AE8B98C924BB363BF7AED8 /* HomeScreen.swift */,
 				B072411656FD1C35E3592A23 /* InteractionAnnouncer.swift */,
@@ -160,6 +188,7 @@
 			buildConfigurationList = 994AE47A9D06B34933CCECDF /* Build configuration list for PBXNativeTarget "Probe" */;
 			buildPhases = (
 				12038353AE89A7B6471BFFB5 /* Sources */,
+				E5A1C0DE00000000000000D1 /* Frameworks */,
 				C9B0A9EF8D8F1665DD1480A1 /* Resources */,
 			);
 			buildRules = (
@@ -168,6 +197,7 @@
 			);
 			name = Probe;
 			packageProductDependencies = (
+				E5A1C0DE00000000000000C2 /* ElevenLabs */,
 			);
 			productName = Probe;
 			productReference = 670DC86C0DB18949CDB87DC1 /* Probe.app */;
@@ -196,6 +226,9 @@
 			);
 			mainGroup = A6BDC90C598E12E8EFC5D4D8;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E5A1C0DE00000000000000C1 /* XCRemoteSwiftPackageReference "elevenlabs-swift-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1ACCD3A56B4BF8334F3423E1 /* Products */;
 			projectDirPath = "";
@@ -253,6 +286,11 @@
 				E26FD30B4385B7C2FC62FEC1 /* StatusBlob.swift in Sources */,
 				CF2BA737758600827A80C04F /* TargetParser.swift in Sources */,
 				D11F61F2E882936D794193DC /* VoiceListener.swift in Sources */,
+				E5A1C0DE00000000000000BC /* TextConsolidator.swift in Sources */,
+				E5A1C0DE00000000000000BB /* AnalyzeView.swift in Sources */,
+				E5A1C0DE00000000000000BA /* TextReader.swift in Sources */,
+				E5A1C0DE00000000000000B9 /* VolumeHUDHider.swift in Sources */,
+				E5A1C0DE00000000000000B8 /* AgentSession.swift in Sources */,
 				A099AD42A5AFBE77CE205D88 /* WaterVisualizer.swift in Sources */,
 				66D5DCF67111EBE36774E101 /* YOLOv10n_EGOHOS.mlpackage in Sources */,
 				7CDDF775603879A49D65F52E /* yolo26n-seg.mlpackage in Sources */,
@@ -441,6 +479,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E5A1C0DE00000000000000C1 /* XCRemoteSwiftPackageReference "elevenlabs-swift-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/elevenlabs/elevenlabs-swift-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.3.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E5A1C0DE00000000000000C2 /* ElevenLabs */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E5A1C0DE00000000000000C1 /* XCRemoteSwiftPackageReference "elevenlabs-swift-sdk" */;
+			productName = ElevenLabs;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 587D90692CD26D0EA2FE6ACC /* Project object */;
 }

@@ -3,10 +3,16 @@ options:
   bundleIdPrefix: com.hophacks
   deploymentTarget:
     iOS: "17.0"
+packages:
+  ElevenLabs:
+    url: https://github.com/elevenlabs/elevenlabs-swift-sdk.git
+    from: 3.3.1
 targets:
   Probe:
     type: application
     platform: iOS
+    dependencies:
+      - package: ElevenLabs
     sources:
       - path: .
         excludes:

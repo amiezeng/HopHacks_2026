@@ -81,6 +81,7 @@ struct HomeScreen: View {
                 landed = true
             }
         }
+        .background(VolumeHUDHider())
     }
 
     /// Swaps the stack's root without any animation.
